@@ -36,9 +36,9 @@
                     <i class="fas fa-user-plus"></i> Novo Aluno
                 </button>
 
-                <!-- Botão de Importação por Excel -->
+                <!-- Botão de Importação de Planilhas/CSV -->
                 <button class="btn-primary" onclick="triggerExcelImport()" style="display: flex; align-items: center; gap: 6px; background-color: #2ec4b6; border-color: #2ec4b6;">
-                    <i class="fas fa-file-excel"></i> Importar Alunos (Excel)
+                    <i class="fas fa-file-excel"></i> Importar Alunos (Excel, CSV, XLS)
                 </button>
                 <input type="file" id="excel-import-file" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelImport(event)">
                 

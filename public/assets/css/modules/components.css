@@ -68,8 +68,10 @@ button, .btn {
     font-weight: 700;
 }
 
-.toast.error { border-left-color: var(--error); }
+.toast.error   { border-left-color: var(--error); }
 .toast.success { border-left-color: var(--success); }
+.toast.warning { border-left-color: #f39c12; }
+.toast.info    { border-left-color: #3498db; }
 
 @keyframes slideIn {
     to { transform: translateX(0); }

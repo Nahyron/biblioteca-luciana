@@ -208,43 +208,148 @@ class StudentService
             return ['success' => false, 'message' => 'A planilha está vazia ou não pôde ser lida.'];
         }
 
-        // --- Busca inteligente da coluna de nomes ---
-        $header       = $rows[0];
+        // --- 1. Detecção Dinâmica da Linha de Cabeçalho Real ---
+        $headerRowIndex = -1;
+        $maxHeaderScore = 0;
+        
+        $keywords = ['nome', 'name', 'aluno', 'student', 'estudante', 'turma', 'class', 'id', 'matrícula', 'matricula', 'chamada', 'cadastro', 'acesso', 'horário', 'horario', 'data', 'date'];
+        
+        $numRowsToTest = min(10, count($rows));
+        for ($r = 0; $r < $numRowsToTest; $r++) {
+            if (!isset($rows[$r]) || !is_array($rows[$r])) continue;
+            
+            $score = 0;
+            foreach ($rows[$r] as $val) {
+                if ($val === null) continue;
+                $clean = strtolower(trim((string)$val));
+                if ($clean === '') continue;
+                
+                foreach ($keywords as $kw) {
+                    if (str_contains($clean, $kw)) {
+                        $score++;
+                    }
+                }
+            }
+            
+            if ($score > $maxHeaderScore) {
+                $maxHeaderScore = $score;
+                $headerRowIndex = $r;
+            }
+        }
+        
+        $headerIsRow0 = false;
         $nomeColIndex = -1;
-        foreach ($header as $idx => $colName) {
-            if ($colName === null) continue;
-            $clean = strtolower(trim($colName));
-            if (
-                $clean === 'nome'      || $clean === 'name'      ||
-                $clean === 'aluno'     || $clean === 'student'   ||
-                str_contains($clean, 'nome')      ||
-                str_contains($clean, 'name')      ||
-                str_contains($clean, 'aluno')     ||
-                str_contains($clean, 'estudante') ||
-                str_contains($clean, 'student')
-            ) {
-                $nomeColIndex = $idx;
-                break;
+        $startIndex = 0;
+        
+        // Se a melhor linha tiver uma pontuação significativa (pelo menos 2 correspondências), consideramos ela como o cabeçalho real
+        if ($headerRowIndex !== -1 && $maxHeaderScore >= 2) {
+            $header = $rows[$headerRowIndex];
+            $startIndex = $headerRowIndex + 1;
+            
+            // Busca a coluna de nomes na linha de cabeçalho detectada
+            foreach ($header as $idx => $colName) {
+                if ($colName === null) continue;
+                $clean = strtolower(trim((string)$colName));
+                if (
+                    $clean === 'nome'      || $clean === 'name'      ||
+                    $clean === 'aluno'     || $clean === 'student'   ||
+                    str_contains($clean, 'nome')      ||
+                    str_contains($clean, 'name')      ||
+                    str_contains($clean, 'aluno')     ||
+                    str_contains($clean, 'estudante') ||
+                    str_contains($clean, 'student')
+                ) {
+                    $nomeColIndex = $idx;
+                    break;
+                }
+            }
+            $headerIsRow0 = true;
+        }
+
+        // --- 2. Validação de Sanidade da Coluna Selecionada ---
+        if ($nomeColIndex !== -1) {
+            $numRowsToVerify = min($startIndex + 6, count($rows));
+            $allNumeric = true;
+            $hasData = false;
+            
+            for ($r = $startIndex; $r < $numRowsToVerify; $r++) {
+                if (!isset($rows[$r][$nomeColIndex])) continue;
+                $valStr = trim((string)$rows[$r][$nomeColIndex]);
+                if ($valStr === '') continue;
+                $hasData = true;
+                
+                // Limpa ordenadores comuns de chamada (ex: 12º, 12., 12-o, 12-a)
+                $cleanVal = preg_replace('/[.\-\sºªoa°]/i', '', $valStr);
+                if (!ctype_digit($cleanVal) && !is_numeric($cleanVal)) {
+                    $allNumeric = false;
+                    break;
+                }
+            }
+            if ($hasData && $allNumeric) {
+                $nomeColIndex = -1; // Descarta e força busca heurística
             }
         }
 
-        // Detecta se a linha 0 é um cabeçalho ou já são dados
-        $headerIsRow0 = ($nomeColIndex !== -1);
-        if (!$headerIsRow0) {
-            $nomeColIndex   = 0; // fallback: assume coluna A
-            $firstCellClean = strtolower(trim($rows[0][0] ?? ''));
-            if (in_array($firstCellClean, ['nome', 'aluno', 'student', 'estudante', 'name'])) {
-                $headerIsRow0 = true;
+        // --- 3. Busca Heurística por Conteúdo Textual ---
+        if ($nomeColIndex === -1) {
+            // Analisa as linhas a partir de $startIndex para descobrir qual coluna tem cara de "Nome"
+            $numRowsToAnalyze = min($startIndex + 6, count($rows));
+            $colScores = [];
+            
+            $numCols = isset($rows[0]) ? count($rows[0]) : 0;
+            for ($c = 0; $c < $numCols; $c++) {
+                $colScores[$c] = 0;
+            }
+            
+            // Começa em $startIndex (pulando cabeçalhos conhecidos)
+            for ($r = $startIndex; $r < $numRowsToAnalyze; $r++) {
+                if (!isset($rows[$r]) || !is_array($rows[$r])) continue;
+                foreach ($rows[$r] as $c => $val) {
+                    if ($val === null) continue;
+                    $valStr = trim((string)$val);
+                    if ($valStr === '') continue;
+                    
+                    $cleanVal = preg_replace('/[.\-\sºªoa°]/i', '', $valStr);
+                    if (!ctype_digit($cleanVal) && !is_numeric($cleanVal)) {
+                        $colScores[$c] = ($colScores[$c] ?? 0) + 1;
+                    }
+                }
+            }
+            
+            $bestCol = 0;
+            $maxScore = -1;
+            foreach ($colScores as $c => $score) {
+                if ($score > $maxScore) {
+                    $maxScore = $score;
+                    $bestCol = $c;
+                }
+            }
+            
+            $nomeColIndex = ($maxScore > 0) ? $bestCol : 0;
+            
+            // Re-verifica se a linha de início possui termos de cabeçalho
+            $firstCellClean = isset($rows[$startIndex][$nomeColIndex]) ? strtolower(trim((string)$rows[$startIndex][$nomeColIndex])) : '';
+            if (
+                $firstCellClean === 'nome'      || $firstCellClean === 'name'      ||
+                $firstCellClean === 'aluno'     || $firstCellClean === 'student'   ||
+                str_contains($firstCellClean, 'nome')      ||
+                str_contains($firstCellClean, 'name')      ||
+                str_contains($firstCellClean, 'aluno')     ||
+                str_contains($firstCellClean, 'estudante') ||
+                str_contains($firstCellClean, 'student')
+            ) {
+                $startIndex++; // pula essa linha de cabeçalho detectada tardiamente
             }
         }
-        $startIndex = $headerIsRow0 ? 1 : 0;
+
+
 
         // --- Carrega todos os alunos ativos do sistema ---
         $existing = $this->repository->getAll();
 
         // Nomes já cadastrados NESTA turma (para impedir duplicação)
         $namesInClass = [];
-        // Nomes cadastrados em OUTRAS turmas do sistema (para aviso informativo)
+        // Nomes cadastrados em OUTRAS turmas do sistema (para aviso de duplicidade global)
         $namesInOtherClasses = [];
 
         foreach ($existing as $st) {
@@ -252,7 +357,7 @@ class StudentService
             if ($st['turma'] === $className) {
                 $namesInClass[] = $nomeLow;
             } else {
-                $namesInOtherClasses[$nomeLow] = $st['nome']; // guarda o nome original
+                $namesInOtherClasses[$nomeLow] = $st['turma']; // guarda o nome da outra turma para o log/aviso
             }
         }
 
@@ -277,9 +382,10 @@ class StudentService
                 continue;
             }
 
-            // Existe em outra turma → registra aviso, mas importa normalmente para esta turma
+            // Existe em outra turma → registra aviso de duplicidade global e pula (não permite cadastrar em duplicidade noutra turma)
             if (isset($namesInOtherClasses[$nomeLow])) {
-                $inOtherClassNames[] = $nome;
+                $inOtherClassNames[] = $nome . " (Turma: " . $namesInOtherClasses[$nomeLow] . ")";
+                continue;
             }
 
             $studentData = [
@@ -298,6 +404,20 @@ class StudentService
             } else {
                 $errors++;
             }
+        }
+
+        // Se nenhum aluno novo foi importado e todos já constavam cadastrados (seja na mesma turma ou em outras)
+        $totalDupCount = count($duplicateNames) + count($inOtherClassNames);
+        if ($imported === 0 && $totalDupCount > 0) {
+            $msg = 'Todos os alunos deste arquivo já constam cadastrados na turma ' . $className . '.';
+            if (count($inOtherClassNames) > 0) {
+                $msg = 'Todos os alunos deste arquivo já constam cadastrados no sistema (inclusive em outras turmas).';
+            }
+            return [
+                'success' => false,
+                'code'    => 'already_imported',
+                'message' => $msg
+            ];
         }
 
         return [

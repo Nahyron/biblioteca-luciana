@@ -4,6 +4,10 @@
 
 let currentManageClass = null;
 let classesCache = []; // Cache para busca client-side
+let _importedFilesHistory = {}; // Controle temporário em memória para uploads ativos
+try {
+    localStorage.removeItem('biblioteca_vision_imported_files'); // Limpa resquícios do histórico persistente anterior
+} catch (e) {}
 
 async function loadClasses() {
     try {
@@ -564,9 +568,6 @@ window.deleteCurrentClassFromDetail = async function () {
     }
 }
 
-/**
- * Abre o seletor de arquivos Excel.
- */
 window.triggerExcelImport = function () {
     document.getElementById('excel-import-file').click();
 }
@@ -578,9 +579,9 @@ window.handleExcelImport = async function (event) {
     // Reseta o input do file para permitir nova seleção
     event.target.value = '';
 
-    // Validação de extensão no frontend (.xlsx e .xls apenas)
-    if (!/(\.xlsx|\.xls)$/i.test(file.name)) {
-        showToast("Arquivo inválido. Envie apenas planilhas nos formatos .xlsx ou .xls", "error");
+    // Validação de extensão no frontend (.xlsx, .xls e .csv)
+    if (!(/(\.xlsx|\.xls|\.csv)$/i.test(file.name))) {
+        showToast("Arquivo inválido. Envie apenas planilhas nos formatos .xlsx, .xls ou .csv", "error");
         return;
     }
 
@@ -589,34 +590,64 @@ window.handleExcelImport = async function (event) {
         return;
     }
 
+    // Bloqueio temporário para impedir cliques duplos simultâneos em memória
+    const fileKey = `${currentManageClass.name}::${file.name}::${file.size}`;
+    if (_importedFilesHistory[fileKey]) {
+        showToast("Este arquivo já está sendo processado. Aguarde.", "info");
+        return;
+    }
+
     const formData = new FormData();
     formData.append('excel_file', file);
     formData.append('className', currentManageClass.name);
 
+    // Registra o arquivo temporariamente no histórico de uploads ativos
+    _importedFilesHistory[fileKey] = true;
+
     showToast("Importando alunos via planilha...", "info");
 
+    let data = null;
     try {
         const res = await fetch('api.php?action=import_students_excel', {
             method: 'POST',
             body: formData
         });
-        const data = await res.json();
 
-        if (data.success) {
-            window.knownStudentsCache = null;
-            if (typeof loadStudents === 'function') {
-                await loadStudents();
-            }
-            refreshStudentsDetailTable();
-
-            // Monta o modal de resultado sempre (sucesso total ou com avisos)
-            _showImportResultModal(data, currentManageClass.name);
-        } else {
-            showToast(data.message, "error");
+        // Tenta ler o texto bruto antes de parsear JSON para evitar erros silenciosos
+        const rawText = await res.text();
+        try {
+            data = JSON.parse(rawText);
+        } catch (parseErr) {
+            console.error("Resposta inválida do servidor:", rawText);
+            // Libera o bloqueio temporário em memória
+            delete _importedFilesHistory[fileKey];
+            showToast("Resposta inesperada do servidor. Verifique os logs.", "error");
+            return;
         }
-    } catch (err) {
-        showToast("Erro ao processar importação", "error");
-        console.error(err);
+    } catch (networkErr) {
+        console.error("Erro de rede ao importar:", networkErr);
+        // Libera o bloqueio temporário em memória
+        delete _importedFilesHistory[fileKey];
+        showToast("Falha de conexão ao tentar importar. Tente novamente.", "error");
+        return;
+    }
+
+    // Libera o bloqueio temporário de memória após a conclusão
+    delete _importedFilesHistory[fileKey];
+
+    if (data && data.success) {
+        window.knownStudentsCache = null;
+        if (typeof loadStudents === 'function') {
+            await loadStudents();
+        }
+        refreshStudentsDetailTable();
+
+        // Monta o modal de resultado sempre (sucesso total ou com avisos)
+        _showImportResultModal(data, currentManageClass.name);
+    } else if (data) {
+        // Exibe toast warning para duplicados exatos (já cadastrados) e error para falhas reais
+        const toastType = data.code === 'already_imported' ? 'warning' : 'error';
+        showToast(data.message || "Erro ao processar a importação.", toastType);
     }
 }
 
@@ -669,14 +700,27 @@ function _showImportResultModal(data, className) {
     if (inOtherCls > 0) {
         const listHtml = otherClsNames.map(n => `<li style="margin-bottom:3px;">${n}</li>`).join('');
         bodyHtml += `
-            <div style="background:rgba(52,152,219,0.07); border-left:4px solid #3498db; padding:12px; border-radius:8px; margin-bottom:0.5rem;">
-                <span style="color:#1a6fa8; font-weight:700; font-size:0.9rem; display:block; margin-bottom:4px;">
-                    <i class="fas fa-exclamation-circle"></i> Atenção — nomes já existem no sistema (${inOtherCls}):
+            <div style="background:rgba(231,76,60,0.07); border-left:4px solid #e74c3c; padding:12px; border-radius:8px; margin-bottom:0.5rem;">
+                <span style="color:#c0392b; font-weight:700; font-size:0.9rem; display:block; margin-bottom:4px;">
+                    <i class="fas fa-exclamation-triangle"></i> Nomes já existentes no sistema (${inOtherCls}):
                 </span>
-                <p style="font-size:0.82rem; color:#666; margin:0 0 8px;">Os alunos abaixo foram importados para <strong>${className}</strong>, mas já possuem cadastro ativo em outra turma do sistema:</p>
-                <div style="max-height:110px; overflow-y:auto; background:#fcfcfc; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">
+                <p style="font-size:0.82rem; color:#666; margin:0 0 8px;">
+                    Os alunos abaixo <strong>já estavam cadastrados em outra turma</strong> no sistema e foram adicionados também a <strong>${className}</strong>.
+                    Verifique se não é um cadastro duplicado:
+                </p>
+                <div style="max-height:130px; overflow-y:auto; background:#fcfcfc; border:1px solid #fcc; border-radius:6px; padding:10px;">
                     <ul style="margin:0; padding-left:1.2rem; font-size:0.88rem; color:#555;">${listHtml}</ul>
                 </div>
+            </div>`;
+    }
+
+    // ── Bloco de Alunos já nesta turma (duplicatas exatas) ──
+    if (duplicates > 0 && imported === 0 && inOtherCls === 0) {
+        bodyHtml += `
+            <div style="text-align:center; padding: 0.5rem 0;">
+                <p style="font-size:0.9rem; color:#888; margin:0;">
+                    Todos os nomes da planilha já estavam cadastrados nesta turma. Nenhuma alteração foi feita.
+                </p>
             </div>`;
     }
 
