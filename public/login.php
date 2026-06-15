@@ -10,7 +10,7 @@ use App\Infrastructure\Auth\SessionAuth;
 
 // Se já estiver autenticado, redireciona direto para o sistema
 if (SessionAuth::isAuthenticated()) {
-    header('Location: index.php');
+    header('Location: controle.php');
     exit;
 }
 

@@ -7,7 +7,7 @@
         <div class="senai-logo"><?php echo APP_NAME_SHORT; ?></div>
     </div>
     <ul class="nav-links">
-        <li class="<?php echo (isset($currentPage) && $currentPage === 'index') ? 'active' : ''; ?>" onclick="window.location.href='index.php'">
+        <li class="<?php echo (isset($currentPage) && $currentPage === 'controle') ? 'active' : ''; ?>" onclick="window.location.href='controle.php'">
             <i class="fas fa-camera"></i> Reconhecimento
         </li>
         <li class="<?php echo (isset($currentPage) && $currentPage === 'dashboard') ? 'active' : ''; ?>" onclick="window.location.href='dashboard.php'">

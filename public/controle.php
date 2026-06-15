@@ -4,7 +4,7 @@
  * -------------------------------------------------------------------
  * Modelo Multi-Page (MPA). Esta página foca APENAS na câmera e reconhecimento.
  */
-$currentPage = 'index';
+$currentPage = 'controle';
 // Configurações e Cache
 require_once dirname(__DIR__) . '/config/config.php';
 require_once dirname(__DIR__) . '/config/autoload.php';

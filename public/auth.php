@@ -35,7 +35,7 @@ try {
 
     if ($admin && password_verify($senha, $admin['senha_hash'])) {
         SessionAuth::login();
-        header('Location: index.php');
+        header('Location: controle.php');
         exit;
     } else {
         header('Location: login.php?erro=credenciais_invalidas');
