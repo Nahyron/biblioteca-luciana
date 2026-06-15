@@ -184,6 +184,9 @@ class ExportService
             if (($data['acao'] ?? 'entrada') === 'desativacao') {
                 $nomeExibicao .= ' (DESATIVADO)';
                 $horaExibicao .= ' [Desativado por: ' . htmlspecialchars($data['operador'] ?? 'Sistema') . ']';
+            } elseif (($data['acao'] ?? 'entrada') === 'ativacao') {
+                $nomeExibicao .= ' (REATIVADO)';
+                $horaExibicao .= ' [Reativado por: ' . htmlspecialchars($data['operador'] ?? 'Sistema') . ']';
             }
 
             $html .= '<tr class="' . $rowClass . '">

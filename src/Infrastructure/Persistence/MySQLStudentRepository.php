@@ -472,13 +472,23 @@ class MySQLStudentRepository implements StudentRepositoryInterface
         return $data;
     }
 
-    public function activate(int $id): bool
+    public function activate(int $id, ?string $operador = null): bool
     {
         $stmt = $this->db->prepare("UPDATE {$this->table} SET status = 'ativo' WHERE id = ?");
         if (!$stmt) return false;
         $stmt->bind_param("i", $id);
         $result = $stmt->execute();
         $stmt->close();
+
+        if ($result) {
+            $stmtLog = $this->db->prepare("INSERT INTO acessos_log (usuario_id, acao, operador) VALUES (?, 'ativacao', ?)");
+            if ($stmtLog) {
+                $stmtLog->bind_param("is", $id, $operador);
+                $stmtLog->execute();
+                $stmtLog->close();
+            }
+        }
+
         return $result;
     }
 

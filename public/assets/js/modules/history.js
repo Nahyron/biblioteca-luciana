@@ -72,6 +72,9 @@ function renderHistoryTable(data) {
         if (log.acao === 'desativacao') {
             nomeHtml = `<span style="color: #dc3545; font-weight: 700;"><i class="fas fa-user-slash" style="margin-right: 5px;"></i>${log.nome} (Desativado)</span>`;
             timestampHtml = `${window.safeFormatLocaleString(log.horario_entrada)} <br> <span style="font-size: 0.78rem; color: #777; font-weight: 600; background: #ffebeb; padding: 2px 6px; border-radius: 4px; border: 1px solid #ffcccc; margin-top: 4px; display: inline-block;"><i class="fas fa-user-shield"></i> Por: ${log.operador || 'Sistema'}</span>`;
+        } else if (log.acao === 'ativacao') {
+            nomeHtml = `<span style="color: #28a745; font-weight: 700;"><i class="fas fa-user-check" style="margin-right: 5px;"></i>${log.nome} (Reativado)</span>`;
+            timestampHtml = `${window.safeFormatLocaleString(log.horario_entrada)} <br> <span style="font-size: 0.78rem; color: #777; font-weight: 600; background: #e8f5e9; padding: 2px 6px; border-radius: 4px; border: 1px solid #c8e6c9; margin-top: 4px; display: inline-block;"><i class="fas fa-user-shield"></i> Por: ${log.operador || 'Sistema'}</span>`;
         }
 
         tr.innerHTML = `

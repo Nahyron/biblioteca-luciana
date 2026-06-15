@@ -46,9 +46,9 @@ class StudentController
         return $students; // returns array of inactive students
     }
 
-    public function activate(int $id): array
+    public function activate(int $id, ?string $operador = null): array
     {
-        $success = $this->service->activate($id);
+        $success = $this->service->activate($id, $operador);
         return [
             'success' => $success,
             'message' => $success ? 'Usuário reativado com sucesso!' : 'Erro ao reativar usuário.'

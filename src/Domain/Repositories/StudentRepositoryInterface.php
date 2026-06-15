@@ -24,7 +24,7 @@ interface StudentRepositoryInterface
     public function getTotalCount(): int;
     public function getClassDistribution(): array;
     public function listInactive(): array;
-    public function activate(int $id): bool;
+    public function activate(int $id, ?string $operador = null): bool;
     public function getAllWithDescriptors(): array;
     public function updateBiometrics(int $id, array $data): bool;
 }

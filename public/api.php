@@ -99,7 +99,24 @@ try {
 
         case 'activate_student':
             $id = (int)($_GET['id'] ?? 0);
-            echo json_encode($studentController->activate($id));
+            $operadorId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $operadorTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            $operadorNome = 'Sistema';
+            
+            if ($operadorId > 0) {
+                $table = $operadorTipo === 'admin' ? 'admins' : 'professores';
+                $stmtOp = $db->prepare("SELECT usuario FROM {$table} WHERE id = ? LIMIT 1");
+                if ($stmtOp) {
+                    $stmtOp->bind_param("i", $operadorId);
+                    $stmtOp->execute();
+                    $resOp = $stmtOp->get_result();
+                    if ($resOp && $rowOp = $resOp->fetch_assoc()) {
+                        $operadorNome = $rowOp['usuario'] . ' (' . ($operadorTipo === 'admin' ? 'Admin' : 'Professor') . ')';
+                    }
+                    $stmtOp->close();
+                }
+            }
+            echo json_encode($studentController->activate($id, $operadorNome));
             break;
 
         case 'inactive_alert':

@@ -133,9 +133,9 @@ class StudentService
         return $this->repository->listInactive();
     }
 
-    public function activate(int $id): bool
+    public function activate(int $id, ?string $operador = null): bool
     {
-        return $this->repository->activate($id);
+        return $this->repository->activate($id, $operador);
     }
 
     public function updateBiometrics(int $id, array $data): bool
