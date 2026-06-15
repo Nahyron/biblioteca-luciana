@@ -23,6 +23,7 @@ use App\Application\Services\ExportService;
 use App\Presentation\Controllers\StudentController;
 use App\Presentation\Controllers\TurmaController;
 use App\Presentation\Controllers\ExportController;
+use App\Presentation\Controllers\AdminController;
 
 // Define o header de resposta como JSON para todas as requisições
 header('Content-Type: application/json');
@@ -43,6 +44,7 @@ try {
     $studentController = new StudentController($studentService);
     $classController = new TurmaController($turmaService); // Mantido como $classController para consistência com o original
     $exportController = new ExportController($exportService);
+    $adminController  = new AdminController($db);
 
     // Obtém a ação solicitada via URL (ex: api.php?action=list_students)
     $action = $_GET['action'] ?? '';
@@ -57,7 +59,9 @@ try {
         case 'list_history':
             $period = $_GET['period'] ?? 'all';
             $date   = $_GET['date']   ?? null;
-            echo json_encode($studentController->listHistory($period, $date));
+            $startDate = $_GET['start_date'] ?? null;
+            $endDate = $_GET['end_date'] ?? null;
+            echo json_encode($studentController->listHistory($period, $date, $startDate, $endDate));
             break;
 
         case 'register_student':
@@ -69,7 +73,24 @@ try {
 
         case 'delete_student':
             $id = (int)($_GET['id'] ?? 0);
-            echo json_encode($studentController->delete($id));
+            $operadorId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $operadorTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            $operadorNome = 'Sistema';
+            
+            if ($operadorId > 0) {
+                $table = $operadorTipo === 'admin' ? 'admins' : 'professores';
+                $stmtOp = $db->prepare("SELECT usuario FROM {$table} WHERE id = ? LIMIT 1");
+                if ($stmtOp) {
+                    $stmtOp->bind_param("i", $operadorId);
+                    $stmtOp->execute();
+                    $resOp = $stmtOp->get_result();
+                    if ($resOp && $rowOp = $resOp->fetch_assoc()) {
+                        $operadorNome = $rowOp['usuario'] . ' (' . ($operadorTipo === 'admin' ? 'Admin' : 'Professor') . ')';
+                    }
+                    $stmtOp->close();
+                }
+            }
+            echo json_encode($studentController->delete($id, $operadorNome));
             break;
 
         case 'list_inactive_students':
@@ -165,7 +186,9 @@ try {
         case 'export_excel':
             $period = $_GET['period'] ?? 'all';
             $date = $_GET['date'] ?? null;
-            $exportController->exportExcel($period, $date);
+            $startDate = $_GET['start_date'] ?? null;
+            $endDate = $_GET['end_date'] ?? null;
+            $exportController->exportExcel($period, $date, $startDate, $endDate);
             break;
 
         case 'export_students':
@@ -195,6 +218,47 @@ try {
             echo json_encode($studentController->importFromExcel($_FILES['excel_file']['tmp_name'], $className));
             break;
 
+
+        // --- Gerenciamento de Admins e Professores ---
+        case 'list_admins':
+            $tipo = preg_replace('/[^a-z]/', '', $_GET['tipo'] ?? 'admin');
+            echo json_encode($adminController->listAll($tipo));
+            break;
+
+        case 'create_admin':
+            $data = json_decode(file_get_contents('php://input'), true);
+            echo json_encode($adminController->create($data ?? []));
+            break;
+
+        case 'reset_admin_password':
+            $id = (int)($_GET['id'] ?? 0);
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            echo json_encode($adminController->resetPassword($id, $currentTipo));
+            break;
+
+        case 'delete_admin':
+            $id         = (int)($_GET['id'] ?? 0);
+            $currentId  = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            echo json_encode($adminController->delete($id, $currentId, $currentTipo));
+            break;
+
+        case 'change_own_password':
+            if (!\App\Infrastructure\Auth\SessionAuth::isAuthenticated()) {
+                echo json_encode(['success' => false, 'message' => 'Não autenticado.']);
+                break;
+            }
+            $data = json_decode(file_get_contents('php://input'), true);
+            $novaSenha = $data['nova_senha'] ?? '';
+            $currentId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            
+            $res = $adminController->changeOwnPassword($currentId, $currentTipo, $novaSenha);
+            if ($res['success']) {
+                \App\Infrastructure\Auth\SessionAuth::setForcePasswordChange(false);
+            }
+            echo json_encode($res);
+            break;
 
         // --- Fallback para ações desconhecidas ---
         default:

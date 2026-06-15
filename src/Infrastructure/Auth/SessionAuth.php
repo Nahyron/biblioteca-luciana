@@ -42,12 +42,53 @@ class SessionAuth
     }
 
     /**
-     * Registra o administrador como autenticado.
+     * Registra o administrador como autenticado e armazena seu ID na sessão.
      */
-    public static function login(): void
+    public static function login(int $adminId = 0, string $adminTipo = 'professor', bool $forcePasswordChange = false): void
     {
         self::start();
         $_SESSION[self::SESSION_KEY] = true;
+        if ($adminId > 0) {
+            $_SESSION['biblioteca_admin_id'] = $adminId;
+        }
+        $_SESSION['biblioteca_admin_tipo'] = $adminTipo;
+        $_SESSION['biblioteca_force_password_change'] = $forcePasswordChange;
+    }
+
+    /**
+     * Retorna o ID do administrador atualmente autenticado.
+     */
+    public static function getAdminId(): int
+    {
+        self::start();
+        return (int)($_SESSION['biblioteca_admin_id'] ?? 0);
+    }
+
+    /**
+     * Retorna o tipo do administrador atualmente autenticado ('admin' ou 'professor').
+     */
+    public static function getAdminTipo(): string
+    {
+        self::start();
+        return $_SESSION['biblioteca_admin_tipo'] ?? 'professor';
+    }
+
+    /**
+     * Verifica se o usuário logado deve ser obrigado a trocar de senha.
+     */
+    public static function shouldForcePasswordChange(): bool
+    {
+        self::start();
+        return (bool)($_SESSION['biblioteca_force_password_change'] ?? false);
+    }
+
+    /**
+     * Altera o status da obrigação de troca de senha na sessão.
+     */
+    public static function setForcePasswordChange(bool $force): void
+    {
+        self::start();
+        $_SESSION['biblioteca_force_password_change'] = $force;
     }
 
     /**

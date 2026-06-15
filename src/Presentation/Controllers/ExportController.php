@@ -12,9 +12,9 @@ class ExportController
 {
     public function __construct(private ExportService $service) {}
 
-    public function exportExcel(string $period, ?string $date = null): void
+    public function exportExcel(string $period, ?string $date = null, ?string $startDate = null, ?string $endDate = null): void
     {
-        $this->service->generateAccessXls($period, $date);
+        $this->service->generateAccessXls($period, $date, $startDate, $endDate);
     }
 
     public function exportStudents(): void

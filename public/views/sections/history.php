@@ -14,8 +14,10 @@
                 </div>
                 <!-- Barra de Pesquisa por Turma -->
                 <div style="position: relative;">
-                    <i class="fas fa-graduation-cap" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #aaa; pointer-events: none;"></i>
-                    <input type="text" id="history-search-class" oninput="searchHistory()" placeholder="Buscar turma..." style="padding: 0.5rem 1rem 0.5rem 2.2rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem; width: 140px;">
+                    <i class="fas fa-graduation-cap" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #aaa; pointer-events: none; z-index: 1;"></i>
+                    <select id="history-search-class" onchange="searchHistory()" style="padding: 0.5rem 1.5rem 0.5rem 2.2rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem; width: 160px; cursor: pointer; -webkit-appearance: none; -moz-appearance: none; appearance: none; background: #fff;">
+                        <option value="">Todas as turmas</option>
+                    </select>
                 </div>
                 <!-- Filtro de Período -->
                 <select id="history-period-filter" onchange="filterHistoryAndExport()" style="padding: 0.5rem 1rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem; cursor: pointer;">
@@ -24,8 +26,12 @@
                     <option value="week">Esta semana</option>
                     <option value="month">Este mês</option>
                 </select>
-                <!-- Data customizada -->
-                <input type="date" id="history-date-filter" onchange="filterHistoryAndExport()" style="padding: 0.5rem 0.75rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem;">
+                <!-- Filtro por Intervalo de Data (Período) -->
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <input type="date" id="history-start-date" onchange="filterHistoryAndExport()" style="padding: 0.5rem 0.5rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem; width: 130px;">
+                    <span style="color: #888; font-size: 0.85rem; font-weight: bold;">até</span>
+                    <input type="date" id="history-end-date" onchange="filterHistoryAndExport()" style="padding: 0.5rem 0.5rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem; width: 130px;">
+                </div>
                 <!-- Botão Exportar XLS -->
                 <button class="btn-primary" onclick="exportHistoryXLS()" style="padding: 0.5rem 1.2rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; background-color: #1d6f42; border-color: #1d6f42;">
                     <i class="fas fa-file-excel"></i> Exportar XLS

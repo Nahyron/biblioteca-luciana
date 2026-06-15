@@ -96,16 +96,25 @@ class MySQLStudentRepository implements StudentRepositoryInterface
         return $result;
     }
 
-    public function delete(int $id): bool
+    public function delete(int $id, ?string $operador = null): bool
     {
-        // 1. Não altera logs de histórico (lógica alterada para manter logs intactos)
-        // 2. Apenas atualiza o status do aluno para 'inativo'
+        // 1. Apenas atualiza o status do aluno para 'inativo'
         $stmt = $this->db->prepare("UPDATE {$this->table} SET status = 'inativo' WHERE id = ?");
         if (!$stmt) return false;
 
         $stmt->bind_param("i", $id);
         $result = $stmt->execute();
         $stmt->close();
+
+        // 2. Registra o evento de desativação no histórico (acessos_log)
+        if ($result) {
+            $stmtLog = $this->db->prepare("INSERT INTO acessos_log (usuario_id, acao, operador) VALUES (?, 'desativacao', ?)");
+            if ($stmtLog) {
+                $stmtLog->bind_param("is", $id, $operador);
+                $stmtLog->execute();
+                $stmtLog->close();
+            }
+        }
 
         return $result;
     }
@@ -381,22 +390,29 @@ class MySQLStudentRepository implements StudentRepositoryInterface
         ];
     }
 
-    public function getHistory(int $limit = 200, string $period = 'all', ?string $date = null): array
+    public function getHistory(int $limit = 200, string $period = 'all', ?string $date = null, ?string $startDate = null, ?string $endDate = null): array
     {
         $whereClause = "";
         $params = [];
         $types = "";
-        $refDate = $date && !empty($date) ? $date : date('Y-m-d');
 
-        if ($period === 'today') {
+        if ($startDate && $endDate) {
+            $whereClause = "WHERE DATE(al.horario_entrada) BETWEEN ? AND ?";
+            $params[] = $startDate;
+            $params[] = $endDate;
+            $types .= "ss";
+        } elseif ($period === 'today') {
+            $refDate = $date && !empty($date) ? $date : date('Y-m-d');
             $whereClause = "WHERE DATE(al.horario_entrada) = ?";
             $params[] = $refDate;
             $types .= "s";
         } elseif ($period === 'week') {
+            $refDate = $date && !empty($date) ? $date : date('Y-m-d');
             $whereClause = "WHERE YEARWEEK(al.horario_entrada, 1) = YEARWEEK(?, 1)";
             $params[] = $refDate;
             $types .= "s";
         } elseif ($period === 'month') {
+            $refDate = $date && !empty($date) ? $date : date('Y-m-d');
             $whereClause = "WHERE MONTH(al.horario_entrada) = MONTH(?) AND YEAR(al.horario_entrada) = YEAR(?)";
             $params[] = $refDate;
             $params[] = $refDate;
@@ -406,7 +422,7 @@ class MySQLStudentRepository implements StudentRepositoryInterface
         $params[] = $limit;
         $types   .= "i";
 
-        $sql = "SELECT al.id, u.nome, u.turma, al.horario_entrada 
+        $sql = "SELECT al.id, u.nome, u.turma, al.horario_entrada, al.acao, al.operador 
                 FROM acessos_log al
                 JOIN usuarios u ON al.usuario_id = u.id
                 {$whereClause}

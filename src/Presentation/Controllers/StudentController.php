@@ -31,12 +31,12 @@ class StudentController
         ];
     }
 
-    public function delete(int $id): array
+    public function delete(int $id, ?string $operador = null): array
     {
-        $success = $this->service->delete($id);
+        $success = $this->service->delete($id, $operador);
         return [
             'success' => $success,
-            'message' => $success ? 'Usuário excluído com sucesso!' : 'Erro ao desativar aluno.'
+            'message' => $success ? 'Usuário desativado com sucesso!' : 'Erro ao desativar aluno.'
         ];
     }
 
@@ -95,9 +95,9 @@ class StudentController
         return $this->service->getDashboardStats($period, $date, $type);
     }
 
-    public function listHistory(string $period = 'all', ?string $date = null): array
+    public function listHistory(string $period = 'all', ?string $date = null, ?string $startDate = null, ?string $endDate = null): array
     {
-        return $this->service->listHistory($period, $date);
+        return $this->service->listHistory($period, $date, $startDate, $endDate);
     }
 
     public function updateBiometrics(int $id, array $data): array

@@ -7,6 +7,8 @@
 $currentPage = 'totem';
 
 require_once dirname(__DIR__) . '/config/config.php';
+require_once dirname(__DIR__) . '/config/autoload.php';
+require_once SRC_PATH . '/Infrastructure/Auth/SessionAuth.php';
 header("Cache-Control: no-cache, must-revalidate");
 
 // 1. Inclui o cabeçalho base do sistema

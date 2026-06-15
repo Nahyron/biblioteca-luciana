@@ -26,15 +26,45 @@ if (empty($usuario) || empty($senha)) {
 
 try {
     $db   = (new Database())->getConnection();
-    $stmt = $db->prepare("SELECT senha_hash FROM admins WHERE usuario = ? AND ativo = 1 LIMIT 1");
+    
+    // 1. Tenta buscar na tabela 'admins'
+    $stmt = $db->prepare("SELECT id, senha_hash, senha_resetada FROM admins WHERE usuario = ? AND ativo = 1 LIMIT 1");
     $stmt->bind_param("s", $usuario);
     $stmt->execute();
     $res   = $stmt->get_result();
-    $admin = $res ? $res->fetch_assoc() : null;
+    $user = $res ? $res->fetch_assoc() : null;
     $stmt->close();
+    
+    $tipo = 'admin';
 
-    if ($admin && password_verify($senha, $admin['senha_hash'])) {
-        SessionAuth::login();
+    // 2. Se não encontrou na tabela 'admins', busca na tabela 'professores'
+    if (!$user) {
+        $stmt = $db->prepare("SELECT id, senha_hash, senha_resetada FROM professores WHERE usuario = ? AND ativo = 1 LIMIT 1");
+        $stmt->bind_param("s", $usuario);
+        $stmt->execute();
+        $res   = $stmt->get_result();
+        $user = $res ? $res->fetch_assoc() : null;
+        $stmt->close();
+        $tipo = 'professor';
+    }
+
+    if ($user && password_verify($senha, $user['senha_hash'])) {
+        $senhaResetada = (int)($user['senha_resetada'] ?? 0);
+        $force = false;
+
+        if ($senhaResetada === 2) {
+            // Primeira entrada: decrementa para 1 e não força a alteração ainda
+            $table = $tipo === 'admin' ? 'admins' : 'professores';
+            $stmtUpdate = $db->prepare("UPDATE {$table} SET senha_resetada = 1 WHERE id = ?");
+            $stmtUpdate->bind_param("i", $user['id']);
+            $stmtUpdate->execute();
+            $stmtUpdate->close();
+        } elseif ($senhaResetada === 1) {
+            // Segunda entrada: força a troca de senha
+            $force = true;
+        }
+
+        SessionAuth::login((int)($user['id'] ?? 0), $tipo, $force);
         header('Location: controle.php');
         exit;
     } else {

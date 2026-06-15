@@ -28,6 +28,9 @@
         <li onclick="openExportModal()">
             <i class="fas fa-file-excel"></i> Exportar
         </li>
+        <li class="<?php echo (isset($currentPage) && $currentPage === 'admins') ? 'active' : ''; ?>" onclick="window.location.href='admins.php'">
+            <i class="fas fa-user-shield"></i> Administradores
+        </li>
     </ul>
 
     <!-- Botão de Logout -->

@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS `acessos_log` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `usuario_id` INT NOT NULL,
   `horario_entrada` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+  `acao` VARCHAR(50) NOT NULL DEFAULT 'entrada',
+  `operador` VARCHAR(255) NULL,
   PRIMARY KEY (`id`),
   INDEX `idx_usuario_acesso` (`usuario_id`),
   CONSTRAINT `fk_usuario_acesso`
@@ -93,11 +95,12 @@ INSERT IGNORE INTO `turmas` (`nome`) VALUES ('N/A');
 -- Senhas armazenadas com password_hash() do PHP (bcrypt).
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `admins` (
-  `id`          INT NOT NULL AUTO_INCREMENT,
-  `usuario`     VARCHAR(100) NOT NULL,
-  `senha_hash`  VARCHAR(255) NOT NULL,
-  `ativo`       TINYINT(1) NOT NULL DEFAULT 1,
-  `criado_at`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+  `id`              INT NOT NULL AUTO_INCREMENT,
+  `usuario`         VARCHAR(100) NOT NULL,
+  `senha_hash`      VARCHAR(255) NOT NULL,
+  `senha_resetada`  TINYINT(1) NOT NULL DEFAULT 0,
+  `ativo`           TINYINT(1) NOT NULL DEFAULT 1,
+  `criado_at`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
   PRIMARY KEY (`id`),
   UNIQUE INDEX `usuario_UNIQUE` (`usuario` ASC)
 )
@@ -113,3 +116,22 @@ INSERT IGNORE INTO `admins` (`usuario`, `senha_hash`) VALUES (
   'admin',
   '$2y$12$s4hbE5fgSRkZATJRY09USOxMkBBcZcQMHVk/XvHIUqt4.CDg9vht2'
 );
+
+-- -----------------------------------------------------
+-- Table `professores`
+-- Armazena os professores do sistema.
+-- Senhas armazenadas com password_hash() do PHP (bcrypt).
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `professores` (
+  `id`              INT NOT NULL AUTO_INCREMENT,
+  `usuario`         VARCHAR(100) NOT NULL,
+  `senha_hash`      VARCHAR(255) NOT NULL,
+  `senha_resetada`  TINYINT(1) NOT NULL DEFAULT 0,
+  `ativo`           TINYINT(1) NOT NULL DEFAULT 1,
+  `criado_at`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `usuario_UNIQUE` (`usuario` ASC)
+)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;

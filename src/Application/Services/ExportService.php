@@ -13,29 +13,36 @@ class ExportService
 {
     public function __construct(private mysqli $db) {}
 
-    public function generateAccessXls(?string $period = 'all', ?string $targetDate = null): void
+    public function generateAccessXls(?string $period = 'all', ?string $targetDate = null, ?string $startDate = null, ?string $endDate = null): void
     {
         $whereClause = "";
-        $refDate = $targetDate && !empty($targetDate) ? $targetDate : date('Y-m-d');
         $params = [];
         $types = "";
 
-        if ($period === 'today') {
+        if ($startDate && $endDate) {
+            $whereClause = "WHERE DATE(al.horario_entrada) BETWEEN ? AND ?";
+            $params[] = $startDate;
+            $params[] = $endDate;
+            $types .= "ss";
+        } elseif ($period === 'today') {
+            $refDate = $targetDate && !empty($targetDate) ? $targetDate : date('Y-m-d');
             $whereClause = "WHERE DATE(al.horario_entrada) = ?";
             $params[] = $refDate;
             $types .= "s";
         } elseif ($period === 'week') {
+            $refDate = $targetDate && !empty($targetDate) ? $targetDate : date('Y-m-d');
             $whereClause = "WHERE YEARWEEK(al.horario_entrada, 1) = YEARWEEK(?, 1)";
             $params[] = $refDate;
             $types .= "s";
         } elseif ($period === 'month') {
+            $refDate = $targetDate && !empty($targetDate) ? $targetDate : date('Y-m-d');
             $whereClause = "WHERE MONTH(al.horario_entrada) = MONTH(?) AND YEAR(al.horario_entrada) = YEAR(?)";
             $params[] = $refDate;
             $params[] = $refDate;
             $types .= "ss";
         }
 
-        $sql = "SELECT al.id as log_id, u.nome, u.turma, al.horario_entrada 
+        $sql = "SELECT al.id as log_id, u.nome, u.turma, al.horario_entrada, al.acao, al.operador 
                 FROM acessos_log al
                 JOIN usuarios u ON al.usuario_id = u.id
                 {$whereClause}
@@ -68,6 +75,9 @@ class ExportService
             'all' => 'Todos os Registros'
         ];
         $periodLabel = $periodLabels[$period] ?? 'Personalizado';
+        if ($startDate && $endDate) {
+            $periodLabel = "Período: " . date('d/m/Y', strtotime($startDate)) . " até " . date('d/m/Y', strtotime($endDate));
+        }
 
         $html = '<html>
 <head>
@@ -168,12 +178,20 @@ class ExportService
             $entradaData = date('d/m/Y', $timestamp);
             $entradaHora = date('H:i:s', $timestamp);
 
+            $nomeExibicao = htmlspecialchars($data['nome']);
+            $horaExibicao = htmlspecialchars($entradaHora);
+
+            if (($data['acao'] ?? 'entrada') === 'desativacao') {
+                $nomeExibicao .= ' (DESATIVADO)';
+                $horaExibicao .= ' [Desativado por: ' . htmlspecialchars($data['operador'] ?? 'Sistema') . ']';
+            }
+
             $html .= '<tr class="' . $rowClass . '">
                 <td align="center">#' . htmlspecialchars($data['log_id']) . '</td>
-                <td>' . htmlspecialchars($data['nome']) . '</td>
+                <td>' . $nomeExibicao . '</td>
                 <td align="center">' . htmlspecialchars($data['turma'] ?? 'Sem Turma') . '</td>
                 <td align="center">' . htmlspecialchars($entradaData) . '</td>
-                <td align="center">' . htmlspecialchars($entradaHora) . '</td>
+                <td align="center">' . $horaExibicao . '</td>
             </tr>';
         }
 

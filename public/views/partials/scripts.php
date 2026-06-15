@@ -11,6 +11,7 @@
 <script src="assets/js/modules/export.js?v=<?php echo time(); ?>"></script>
 <script src="assets/js/modules/faceEnrollment.js?v=<?php echo time(); ?>"></script>
 <script src="assets/js/modules/recognition.js?v=<?php echo time(); ?>"></script>
+<script src="assets/js/modules/admins.js?v=<?php echo time(); ?>"></script>
 
 <!-- Script Orquestrador -->
 <script src="assets/js/modules/sseClient.js?v=<?php echo time(); ?>"></script>

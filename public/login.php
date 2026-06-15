@@ -544,7 +544,7 @@ $mensagemErro = match($erro) {
                 <i class="fas fa-user-shield"></i>
             </div>
             <div class="option-info">
-                <div class="option-title">Login Administrativo</div>
+                <div class="option-title">Login Administrativo/Professor</div>
                 <div class="option-desc">Painel completo — Dashboard, alunos, turmas e relatórios</div>
             </div>
             <i class="fas fa-chevron-right option-arrow"></i>

@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (document.getElementById('history-table-body') && typeof loadHistory === 'function') {
         loadHistory();
+        if (typeof loadClassesFilter === 'function') {
+            loadClassesFilter();
+        }
     }
     
     if (document.getElementById('classes-grid') && typeof loadClasses === 'function') {

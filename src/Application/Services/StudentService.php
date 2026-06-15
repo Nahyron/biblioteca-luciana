@@ -83,9 +83,9 @@ class StudentService
         return $this->repository->logAccess($studentId);
     }
 
-    public function delete(int $id): bool
+    public function delete(int $id, ?string $operador = null): bool
     {
-        return $this->repository->delete($id);
+        return $this->repository->delete($id, $operador);
     }
 
     public function deleteHistory(int $logId): bool
@@ -123,9 +123,9 @@ class StudentService
         return $this->repository->getDashboardStats($period, $date, $type);
     }
 
-    public function listHistory(string $period = 'all', ?string $date = null): array
+    public function listHistory(string $period = 'all', ?string $date = null, ?string $startDate = null, ?string $endDate = null): array
     {
-        return $this->repository->getHistory(200, $period, $date);
+        return $this->repository->getHistory(200, $period, $date, $startDate, $endDate);
     }
 
     public function listInactive(): array

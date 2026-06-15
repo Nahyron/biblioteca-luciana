@@ -1,10 +1,11 @@
 <?php
     $pageTitles = [
-        'index' => 'Scanner de Acesso',
+        'index'     => 'Scanner de Acesso',
         'dashboard' => 'Painel de Fluxo',
-        'students' => 'Gestão de Usuários',
-        'history' => 'Histórico de Entradas',
-        'classes' => 'Gestão de Turmas'
+        'students'  => 'Gestão de Usuários',
+        'history'   => 'Histórico de Entradas',
+        'classes'   => 'Gestão de Turmas',
+        'admins'    => 'Administradores e Professores',
     ];
     $pageTitle = isset($currentPage) && isset($pageTitles[$currentPage]) ? $pageTitles[$currentPage] : 'Painel de Controle';
 ?>
@@ -23,3 +24,9 @@
 
 <!-- Cortina cinza para o menu mobile (aparece quando o menu abre no celular) -->
 <div id="sidebar-overlay" onclick="toggleMobileMenu()"></div>
+
+<?php
+if (\App\Infrastructure\Auth\SessionAuth::isAuthenticated() && \App\Infrastructure\Auth\SessionAuth::shouldForcePasswordChange()) {
+    include_once PUBLIC_PATH . '/views/modals/force_password_change.php';
+}
+?>
