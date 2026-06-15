@@ -249,8 +249,9 @@ try {
 
         case 'reset_admin_password':
             $id = (int)($_GET['id'] ?? 0);
+            $currentId  = \App\Infrastructure\Auth\SessionAuth::getAdminId();
             $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
-            echo json_encode($adminController->resetPassword($id, $currentTipo));
+            echo json_encode($adminController->resetPassword($id, $currentId, $currentTipo));
             break;
 
         case 'delete_admin':

@@ -82,9 +82,10 @@ class AdminController
 
     /**
      * Redefine a senha de um usuário para a senha padrão do sistema ('senaisp').
-     * Professores podem resetar a senha de outros professores, mas não de admins.
+     * Admins podem resetar a senha de professores e de outros admins.
+     * Professores só podem resetar a senha de outros professores e dele mesmo.
      */
-    public function resetPassword(int $id, string $currentAdminTipo = 'professor'): array
+    public function resetPassword(int $id, int $currentAdminId = 0, string $currentAdminTipo = 'professor'): array
     {
         if ($id <= 0) return ['success' => false, 'message' => 'ID inválido.'];
 
@@ -117,9 +118,17 @@ class AdminController
             return ['success' => false, 'message' => 'Usuário não encontrado.'];
         }
 
-        // Aplicar a regra de permissão
-        if ($currentAdminTipo === 'professor' && $targetTipo === 'admin') {
-            return ['success' => false, 'message' => 'Um professor não pode resetar a senha de um administrador.'];
+        // Aplicar as regras de permissão
+        if ($currentAdminTipo === 'professor') {
+            // Professor só reseta professor (outros ou ele mesmo)
+            if ($targetTipo === 'admin') {
+                return ['success' => false, 'message' => 'Um professor não possui permissão para resetar a senha de um administrador.'];
+            }
+        } elseif ($currentAdminTipo === 'admin') {
+            // Admin reseta professores e OUTROS admins (não a si mesmo)
+            if ($targetTipo === 'admin' && $id === $currentAdminId) {
+                return ['success' => false, 'message' => 'Você não pode resetar sua própria senha administrativa.'];
+            }
         }
 
         $novaSenha = 'senaisp';
