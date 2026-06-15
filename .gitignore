@@ -1,0 +1,31 @@
+# --- CONFIGURAÇÃO DE SEGURANÇA E ARQUIVOS SENSÍVEIS ---
+
+# Credenciais e Variáveis de Ambiente (Altamente Sensível)
+.env
+.env.local
+.env.production
+
+# Arquivos e Fotos Biométricas de Alunos (Privacidade & Sensível)
+public/assets/uploads/
+public/assets/uploads/faces/*
+
+# Logs do Sistema e Temporários
+storage/*.log
+storage/*.json
+storage/logs/
+
+# --- METADADOS E ARQUIVOS DO AGENTE ---
+.agent
+scratch/
+
+
+# --- IDE E SISTEMA OPERACIONAL ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- DEPENDÊNCIAS DE TERCEIROS ---
+vendor/
+

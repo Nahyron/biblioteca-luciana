@@ -1,0 +1,292 @@
+/**
+ * TERMINAL TOTEM - DESIGN SYSTEM & VISUAL STYLE (CSS Premium)
+ * Paleta: Tons escuros (grafite) e Vermelho Carmim (#BC0000 - SENAI)
+ */
+
+.totem-body {
+    background: #0d0d0f;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
+    color: #e2e8f0;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Container Principal do Totem */
+.totem-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Câmera em Tela Cheia Responsiva */
+.totem-camera-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.totem-camera-wrapper video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
+.totem-camera-wrapper canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 2;
+    transform: scaleX(-1);
+}
+
+/* MÁSCARA FUTURISTA DE DELIMITAÇÃO FACIAL */
+.face-scanner-box {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 350px;
+    height: 440px;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    border-radius: 24px; /* Formato quadrado tecnológico moderno com cantos suaves */
+    /* Efeito de escurecer tudo fora da máscara biométrica quadrada */
+    box-shadow: 0 0 0 9999px rgba(13, 13, 15, 0.78); 
+    pointer-events: none;
+    z-index: 5;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Pulsar da borda em modo de escaneamento ativo */
+.face-scanner-box.scanning {
+    animation: scanner-pulse 2s infinite ease-in-out;
+}
+
+@keyframes scanner-pulse {
+    0% { border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 0 0 9999px rgba(13, 13, 15, 0.78), 0 0 10px rgba(255, 255, 255, 0.1); }
+    50% { border-color: rgba(188, 0, 0, 0.8); box-shadow: 0 0 0 9999px rgba(13, 13, 15, 0.78), 0 0 25px rgba(188, 0, 0, 0.4); }
+    100% { border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 0 0 9999px rgba(13, 13, 15, 0.78), 0 0 10px rgba(255, 255, 255, 0.1); }
+}
+
+/* LINHA DE LASER BIOMÉTRICO ANIMADA */
+.face-scanner-laser {
+    position: absolute;
+    top: 5%;
+    left: 8%;
+    width: 84%;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #BC0000 30%, #BC0000 70%, transparent);
+    box-shadow: 0 0 20px #BC0000, 0 0 8px #BC0000;
+    border-radius: 50%;
+    animation: laser-scan 3.5s infinite ease-in-out;
+    opacity: 0.95;
+    z-index: 6;
+    pointer-events: none;
+}
+
+@keyframes laser-scan {
+    0% { top: 12%; opacity: 0.4; }
+    15% { opacity: 0.95; }
+    50% { top: 88%; opacity: 0.95; }
+    85% { opacity: 0.95; }
+    100% { top: 12%; opacity: 0.4; }
+}
+
+/* Interface Superior (Header do Totem) */
+.totem-header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: linear-gradient(to bottom, rgba(13, 13, 15, 0.9) 30%, transparent);
+    pointer-events: none;
+}
+
+.totem-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    pointer-events: auto;
+}
+
+.totem-logo {
+    background: #BC0000;
+    color: white;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(188, 0, 0, 0.3);
+}
+
+.totem-title {
+    font-weight: 500;
+    font-size: 1.2rem;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.totem-time-box {
+    text-align: right;
+    pointer-events: auto;
+}
+
+.totem-clock {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+
+.totem-date {
+    font-size: 0.85rem;
+    color: #a0aec0;
+    margin-top: 0.2rem;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+/* Interface Inferior (Painel de Status & Mensagens) */
+.totem-footer {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2.5rem 2rem;
+    background: linear-gradient(to top, rgba(13, 13, 15, 0.95) 40%, transparent);
+}
+
+/* Painel de Mensagens e Status */
+.totem-status-card {
+    background: rgba(22, 22, 26, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 16px;
+    padding: 1.2rem 2.5rem;
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.totem-status-indicator {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+.totem-status-subtext {
+    font-size: 0.95rem;
+    color: #a0aec0;
+    transition: all 0.3s ease;
+}
+
+
+/* Placeholder de Câmera Desconectada */
+.totem-camera-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #0d0d0f;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    color: #718096;
+}
+
+.totem-camera-placeholder i {
+    font-size: 3.5rem;
+    color: #dc3545;
+    animation: placeholder-blink 2s infinite alternate;
+}
+
+@keyframes placeholder-blink {
+    0% { opacity: 0.4; }
+    100% { opacity: 0.9; }
+}
+
+.totem-camera-placeholder span {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Responsividade adicional para o scanner em aparelhos pequenos */
+@media (max-width: 480px) {
+    .face-scanner-box {
+        width: 280px;
+        height: 350px;
+    }
+    .totem-footer {
+        padding: 1.5rem;
+    }
+}
+
+/* Botão de Câmera Premium no Totem */
+.totem-btn-camera {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+    padding: 0.5rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 1rem;
+}
+
+.totem-btn-camera:hover {
+    background: #BC0000;
+    border-color: #BC0000;
+    color: white;
+    transform: scale(1.08);
+    box-shadow: 0 4px 15px rgba(188, 0, 0, 0.4);
+}
+
+.totem-btn-camera:active {
+    transform: scale(0.95);
+}

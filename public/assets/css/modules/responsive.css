@@ -1,0 +1,99 @@
+/**
+ * DISPOSITIVOS MÓVEIS E ADAPTABILIDADE
+ * Garante que o sistema SENAI funcione em Tablets e Celulares.
+ */
+
+/* Botão Menu Mobile (Visível apenas no Celular) */
+.btn-menu-mobile {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-dark);
+    font-size: 1.8rem;
+    padding: 0;
+    cursor: pointer;
+}
+
+#sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+    display: none;
+}
+
+#sidebar-overlay.active {
+    display: block;
+}
+
+/* TABLET (< 1100px) */
+@media (max-width: 1100px) {
+    nav {
+        width: 220px;
+    }
+
+    main {
+        margin-left: 220px;
+        padding: 2rem;
+    }
+
+}
+
+/* MOBILE (< 800px) */
+@media (max-width: 800px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr; /* Una coluna */
+        gap: 1.5rem;
+    }
+
+    .stats-card {
+        grid-column: 1;
+        grid-row: 1;
+        width: 100%;
+    }
+
+    .chart-card {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .btn-menu-mobile {
+        display: block;
+    }
+
+    nav {
+        left: -260px; /* Esconde Sidebar */
+        width: 260px;
+    }
+
+    nav.mobile-active {
+        left: 0; /* Mostra Sidebar no celular */
+    }
+
+    main {
+        margin-left: 0;
+        padding: 1.5rem;
+    }
+
+    header h2 {
+        font-size: 1.4rem;
+    }
+
+    .total-acessos-number {
+        font-size: 3rem;
+    }
+
+    #toast-container {
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+    }
+
+    .toast {
+        min-width: auto;
+        width: 100%;
+    }
+}

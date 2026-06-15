@@ -1,0 +1,20 @@
+/**
+ * VARIÁVEIS GLOBAIS (Design System SENAI)
+ * Centraliza as cores, sombras e transições do sistema.
+ */
+:root {
+    --primary: #D2232A; /* Vermelho Institucional SENAI */
+    --primary-dark: #991C21;
+    --secondary: #FFFFFF;
+    --bg-light: #F8F9FA;
+    --bg-body: #F4F4F4;
+    --text-dark: #212529;
+    --text-gray: #6C757D;
+    --white: #FFFFFF;
+    --gray-light: #DDDDDD;
+    --gray-border: #E0E0E0;
+    --success: #28a745;
+    --warning: #ffc107;
+    --error: #dc3545;
+    --transition: all 0.3s ease;
+}

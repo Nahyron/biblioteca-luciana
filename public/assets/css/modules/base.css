@@ -1,0 +1,53 @@
+/**
+ * ESTILOS BASE E ESTRUTURA GLOBAL
+ * Reset, corpo e componentes estruturais clássicos (Cards).
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+}
+
+body {
+    background-color: var(--bg-body);
+    color: var(--text-dark);
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ÁREA DE CONTEÚDO PRINCIPAL (Main) */
+main {
+    margin-left: 260px; /* Largura da Sidebar */
+    flex: 1;
+    padding: 2.5rem 3rem;
+    transition: var(--transition);
+    animation: fadeIn 0.4s ease-out forwards; /* Suaviza a troca de página no modelo MPA */
+}
+
+/* Cards Clássicos do Sistema */
+.card {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+    border: 1px solid var(--gray-border);
+}
+
+.hidden {
+    display: none !important;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
