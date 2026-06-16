@@ -5,17 +5,46 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
             <h3 style="margin:0;">Gestão de Turmas</h3>
             <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                <!-- Barra de Pesquisa -->
+                <!-- Barra de Pesquisa (Ativas) -->
                 <div style="position: relative;">
                     <i class="fas fa-search" style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:#aaa;pointer-events:none;"></i>
-                    <input type="text" id="classes-search" oninput="searchClasses()" placeholder="Buscar turma..." style="padding: 0.5rem 1rem 0.5rem 2.2rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem; width: 200px;">
+                    <input type="text" id="classes-search" oninput="searchClasses()" placeholder="Buscar turma..." style="padding: 0.5rem 1rem 0.5rem 2.2rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem; width: 180px;">
                 </div>
+                
+                <!-- Botão Ver Desativadas -->
+                <button class="btn-secondary" id="btn-toggle-inactive" onclick="toggleInactiveClassesSection()" style="display: flex; align-items: center; gap: 6px; padding: 0.5rem 1rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem; cursor: pointer; background: #fff; color: #444; transition: all 0.2s;">
+                    <i class="fas fa-eye-slash" style="color: #777;"></i> <span id="btn-toggle-inactive-text">Ver Desativadas</span>
+                </button>
+
+                <!-- Barra de Pesquisa (Desativadas) - Oculta por padrão -->
+                <div id="inactive-search-container" style="position: relative; display: none;">
+                    <i class="fas fa-search" style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:#aaa;pointer-events:none;"></i>
+                    <input type="text" id="inactive-classes-search" oninput="searchInactiveClasses()" placeholder="Buscar desativada..." style="padding: 0.5rem 1rem 0.5rem 2.2rem; border: 1px solid var(--gray-border, #ddd); border-radius: 8px; font-size: 0.9rem; width: 180px;">
+                </div>
+
                 <button class="btn-primary" onclick="openClassModal()">+ Nova Turma</button>
             </div>
         </div>
         <div id="classes-grid"
             style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
-            <!-- Cards de turmas injetados via AJAX (app.js) -->
+            <!-- Cards de turmas ativas injetados via AJAX (classes.js) -->
+        </div>
+    </div>
+
+    <!-- Seção de Turmas Inativas -->
+    <div id="inactive-classes-section" class="card" style="display: none; margin-top: 1.5rem; border-left: 4px solid #aaa;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;">
+            <div style="width: 36px; height: 36px; border-radius: 9px; background: rgba(100,100,100,0.08); display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-ban" style="color: #aaa; font-size: 1rem;"></i>
+            </div>
+            <div>
+                <h3 style="margin: 0; font-size: 1rem; color: #777;">Turmas Desativadas</h3>
+                <p style="margin: 0; font-size: 0.78rem; color: #aaa;">Clique em <i class="fas fa-check-circle"></i> para reativar uma turma</p>
+            </div>
+        </div>
+        <div id="inactive-classes-grid"
+            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;">
+            <!-- Cards de turmas inativas injetados via JS -->
         </div>
     </div>
 
@@ -42,9 +71,9 @@
                 </button>
                 <input type="file" id="excel-import-file" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelImport(event)">
                 
-                <!-- Excluir Turma Inteira -->
-                <button class="btn-action btn-delete" onclick="deleteCurrentClassFromDetail()" style="padding: 0.6rem 1rem; font-size: 0.85rem;">
-                    <i class="fas fa-trash"></i> Excluir Turma
+                <!-- Desativar Turma Inteira -->
+                <button class="btn-action btn-delete" onclick="deleteCurrentClassFromDetail()" style="padding: 0.6rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-ban"></i> Desativar Turma
                 </button>
             </div>
         </div>

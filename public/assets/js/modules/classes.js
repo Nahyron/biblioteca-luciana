@@ -3,18 +3,27 @@
  */
 
 let currentManageClass = null;
-let classesCache = []; // Cache para busca client-side
+let classesCache = []; // Cache de turmas ativas
+let inactiveClassesCache = []; // Cache de turmas inativas
 let _importedFilesHistory = {}; // Controle temporário em memória para uploads ativos
 try {
     localStorage.removeItem('biblioteca_vision_imported_files'); // Limpa resquícios do histórico persistente anterior
-} catch (e) {}
+} catch (e) { }
 
 async function loadClasses() {
     try {
-        const response = await fetch('api.php?action=list_classes');
-        const classes = await response.json();
-        classesCache = Array.isArray(classes) ? classes : [];
+        const [activeRes, inactiveRes] = await Promise.all([
+            fetch('api.php?action=list_classes'),
+            fetch('api.php?action=list_inactive_classes')
+        ]);
+        const classes         = await activeRes.json();
+        const inactiveClasses = await inactiveRes.json();
+
+        classesCache         = Array.isArray(classes)         ? classes         : [];
+        inactiveClassesCache = Array.isArray(inactiveClasses) ? inactiveClasses : [];
+
         renderClassesGrid(classesCache);
+        renderInactiveClassesSection(inactiveClassesCache);
         updateClassSelects(classesCache);
     } catch (err) {
         console.error("Erro ao carregar turmas:", err);
@@ -23,7 +32,7 @@ async function loadClasses() {
 }
 
 /**
- * Renderiza os cards de turma a partir de um array (do cache ou filtrado).
+ * Renderiza os cards de turma ativa a partir de um array (do cache ou filtrado).
  */
 function renderClassesGrid(classes) {
     const grid = document.getElementById('classes-grid');
@@ -45,7 +54,7 @@ function renderClassesGrid(classes) {
         card.style.transition = 'transform 0.2s, box-shadow 0.2s';
 
         card.onmouseover = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)'; };
-        card.onmouseout = () => { card.style.transform = ''; card.style.boxShadow = ''; };
+        card.onmouseout  = () => { card.style.transform = ''; card.style.boxShadow = ''; };
 
         card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -56,7 +65,7 @@ function renderClassesGrid(classes) {
                     <div>
                         <!-- Botões Rápidos de Turma -->
                         <button class="btn-action-edit" style="padding: 5px; font-size: 0.8rem;" title="Editar" onclick="editClass(${cls.id}, '${cls.nome}', event)"><i class="fas fa-edit"></i></button>
-                        <button class="btn-action-delete" style="padding: 5px; font-size: 0.8rem;" title="Excluir" onclick="deleteClassDirect(${cls.id}, '${cls.nome}', event)"><i class="fas fa-trash"></i></button>
+                        <button class="btn-action-delete" style="padding: 5px; font-size: 0.8rem;" title="Desativar Turma" onclick="deactivateClassDirect(${cls.id}, '${cls.nome}', event)"><i class="fas fa-ban"></i></button>
                     </div>
                 </div>
                 <button class="btn-secondary" style="width: 100%; margin-top: 1rem;" onclick="showClassStudentsView('${cls.nome}', ${cls.id}, event)">
@@ -65,6 +74,114 @@ function renderClassesGrid(classes) {
             `;
         grid.appendChild(card);
     });
+}
+
+let isInactiveSectionVisible = false; // Estado global para visibilidade da seção
+
+/**
+ * Renderiza apenas os cards de turmas inativas no grid.
+ */
+function renderInactiveClassesGrid(classes) {
+    const grid = document.getElementById('inactive-classes-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const filtered = (classes || []).filter(c => !['Sem Turma', 'N/A', 'N/A '].includes(c.nome));
+
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div style="padding:2rem;text-align:center;color:#888;grid-column:1/-1;">Nenhuma turma desativada encontrada.</div>';
+        return;
+    }
+
+    filtered.forEach(cls => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.borderLeft = '4px solid #aaa';
+        card.style.opacity = '0.85';
+
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h4 style="margin: 0; font-size: 1.1rem; color: #777;">
+                        <i class="fas fa-ban" style="font-size:0.85rem; margin-right:5px; color:#aaa;"></i>${cls.nome}
+                    </h4>
+                    <span style="font-size: 0.8rem; color: #aaa;">Desativada em ${new Date(cls.created_at).toLocaleDateString('pt-BR')}</span>
+                </div>
+                <div>
+                    <button class="btn-action-edit" style="padding: 5px; font-size: 0.8rem; background: rgba(37,99,235,0.08); border-color: rgba(37,99,235,0.3); color: #2563eb;" title="Reativar Turma" onclick="activateClass(${cls.id}, '${cls.nome}', event)">
+                        <i class="fas fa-check-circle"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+/**
+ * Renderiza a seção de turmas inativas.
+ */
+function renderInactiveClassesSection(classes) {
+    const container = document.getElementById('inactive-classes-section');
+    if (!container) return;
+
+    renderInactiveClassesGrid(classes);
+    updateInactiveSectionVisibility();
+}
+
+/**
+ * Alterna a visibilidade da seção de turmas inativas e da barra de busca correspondente.
+ */
+window.toggleInactiveClassesSection = function () {
+    isInactiveSectionVisible = !isInactiveSectionVisible;
+    updateInactiveSectionVisibility();
+}
+
+/**
+ * Atualiza os elementos visuais de controle baseando-se em isInactiveSectionVisible.
+ */
+function updateInactiveSectionVisibility() {
+    const container = document.getElementById('inactive-classes-section');
+    const searchContainer = document.getElementById('inactive-search-container');
+    const btnText = document.getElementById('btn-toggle-inactive-text');
+    const btnIcon = document.querySelector('#btn-toggle-inactive i');
+
+    if (!container) return;
+
+    if (isInactiveSectionVisible) {
+        container.style.display = 'block';
+        if (searchContainer) searchContainer.style.display = 'block';
+        if (btnText) btnText.innerText = 'Ocultar Desativadas';
+        if (btnIcon) {
+            btnIcon.className = 'fas fa-eye';
+        }
+    } else {
+        container.style.display = 'none';
+        if (searchContainer) searchContainer.style.display = 'none';
+        if (btnText) btnText.innerText = 'Ver Desativadas';
+        if (btnIcon) {
+            btnIcon.className = 'fas fa-eye-slash';
+        }
+        // Reseta busca ao ocultar
+        const searchInput = document.getElementById('inactive-classes-search');
+        if (searchInput && searchInput.value) {
+            searchInput.value = '';
+            renderInactiveClassesGrid(inactiveClassesCache);
+        }
+    }
+}
+
+/**
+ * Filtro local para busca em turmas desativadas.
+ */
+window.searchInactiveClasses = function () {
+    const query = (document.getElementById('inactive-classes-search')?.value || '').toLowerCase().trim();
+    if (!query) {
+        renderInactiveClassesGrid(inactiveClassesCache);
+        return;
+    }
+    const filtered = inactiveClassesCache.filter(cls => cls.nome.toLowerCase().includes(query));
+    renderInactiveClassesGrid(filtered);
 }
 
 /**
@@ -224,37 +341,74 @@ async function updateStudentClassAPI(studentId, newClassName) {
 }
 
 /**
- * Apaga a turma sendo gerenciada atualmente no modal.
+ * Desativa a turma sendo gerenciada atualmente no modal.
  */
 window.deleteCurrentClass = async function () {
     if (!currentManageClass) return;
-    await window.deleteClassDirect(currentManageClass.id, currentManageClass.name);
+    await window.deactivateClassDirect(currentManageClass.id, currentManageClass.name);
 }
 
 /**
- * Exclui a turma diretamente pelo Card.
+ * Desativa a turma diretamente pelo Card (soft delete).
  */
-window.deleteClassDirect = async function (id, name, event) {
+window.deactivateClassDirect = async function (id, name, event) {
     if (event) event.stopPropagation();
 
-    const confirmed = await window.openConfirmModal("Excluir Turma Inteira", `ATENÇÃO: Deseja apagar a turma "${name}"?\nAlunos serão desvinculados e perderão a associação!`);
+    const confirmed = await window.openConfirmModal(
+        "Desativar Turma",
+        `Deseja desativar a turma "${name}"?\nOs alunos desta turma também serão desativados e a turma ficará inativa.\nVocê poderá reativá-la depois.`,
+        "Sim, Desativar"
+    );
     if (!confirmed) return;
 
     try {
-        const res = await fetch(`${window.API_URL}?action=delete_class&id=${id}`);
+        const res  = await fetch(`${window.API_URL}?action=deactivate_class&id=${id}`);
         const data = await res.json();
 
         if (data.success) {
             showToast(data.message, "success");
             closeManageClassModal();
-            window.knownStudentsCache = null; // reseta alunos
+            window.knownStudentsCache = null;
             if (typeof loadStudents === 'function') await loadStudents();
             loadClasses();
         } else {
             showToast(data.message, "error");
         }
     } catch (err) {
-        showToast("Erro ao apagar", "error");
+        showToast("Erro ao desativar", "error");
+    }
+}
+
+/**
+ * Alias antigo para manter compatibilidade com botões existentes.
+ */
+window.deleteClassDirect = window.deactivateClassDirect;
+
+/**
+ * Ativa uma turma desativada.
+ */
+window.activateClass = async function (id, name, event) {
+    if (event) event.stopPropagation();
+
+    const confirmed = await window.openConfirmModal(
+        "Reativar Turma",
+        `Deseja reativar a turma "${name}"?\nEla voltará a aparecer na lista de turmas ativas.`,
+        "Sim, Reativar"
+    );
+    if (!confirmed) return;
+
+    try {
+        const res  = await fetch(`${window.API_URL}?action=activate_class&id=${id}`);
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(data.message, "success");
+            loadClasses();
+        } else {
+            showToast(data.message, "error");
+        }
+    } catch (err) {
+        showToast("Erro ao reativar turma", "error");
     }
 }
 
@@ -277,7 +431,7 @@ window.editClass = async function (id, currentName, event) {
 
         if (data.success) {
             showToast(data.message, "success");
-            window.knownStudentsCache = null; // reseta alunos pois as turmas mudaram
+            window.knownStudentsCache = null;
             if (typeof loadStudents === 'function') await loadStudents();
             loadClasses();
         } else {
@@ -295,18 +449,14 @@ window.showClassStudentsView = function (className, classId, event) {
     if (event) event.stopPropagation();
     currentManageClass = { name: className, id: classId };
 
-    // Oculta visualização da lista e exibe a visualização detalhada
     document.getElementById('classes-list-view').style.display = 'none';
     document.getElementById('class-detail-view').style.display = 'block';
 
-    // Define o título da turma
     document.getElementById('class-detail-title').innerText = `Gestão de Alunos: ${className}`;
 
-    // Reseta filtros e campos de busca
     document.getElementById('class-student-search').value = '';
     document.getElementById('class-student-facial-filter').value = 'all';
 
-    // Atualiza a tabela
     refreshStudentsDetailTable();
 }
 
@@ -328,10 +478,8 @@ window.refreshStudentsDetailTable = function () {
     const allStudents = window.knownStudentsCache;
     const enrolled = allStudents.filter(s => s.turma === currentManageClass.name);
 
-    // Renderiza a tabela aplicando os filtros de busca e facial
     renderClassStudentsTable(enrolled);
 
-    // Carrega a lista de alunos disponíveis para vincular (alunos sem turma)
     const available = allStudents.filter(s => !s.turma || s.turma === 'Sem Turma' || s.turma === 'N/A' || s.turma === 'N/A ');
     const select = document.getElementById('select-add-student-detail');
     if (select) {
@@ -354,15 +502,11 @@ window.renderClassStudentsTable = function (students) {
 
     tbody.innerHTML = '';
 
-    // Aplica os filtros de busca e biometria
-    const searchQuery = (document.getElementById('class-student-search')?.value || '').toLowerCase().trim();
+    const searchQuery  = (document.getElementById('class-student-search')?.value || '').toLowerCase().trim();
     const facialFilter = document.getElementById('class-student-facial-filter')?.value || 'all';
 
     const filtered = students.filter(s => {
-        // Filtro de busca por nome
         const matchesSearch = s.nome.toLowerCase().includes(searchQuery);
-
-        // Filtro de biometria (verifica se face_descriptor não é nulo/vazio)
         const hasFacial = s.face_descriptor && s.face_descriptor.trim() !== '';
         let matchesFacial = true;
         if (facialFilter === 'yes') {
@@ -370,7 +514,6 @@ window.renderClassStudentsTable = function (students) {
         } else if (facialFilter === 'no') {
             matchesFacial = !hasFacial;
         }
-
         return matchesSearch && matchesFacial;
     });
 
@@ -388,7 +531,6 @@ window.renderClassStudentsTable = function (students) {
             ? `<span class="badge badge-success" style="background-color: #2ec4b6; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;"><i class="fas fa-check-circle"></i> Cadastrado</span>`
             : `<span class="badge badge-gray" style="background-color: #e5e5e5; color: #666; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;"><i class="fas fa-times-circle"></i> Não Cadastrado</span>`;
 
-        // Configuração dinâmica com base no status facial
         const facialBtnClass = hasFacial ? 'btn-delete' : 'btn-primary';
         const facialBtnStyle = hasFacial ? 'background-color: #dc3545; color: #fff; border: none;' : '';
         const facialBtnIcon  = hasFacial ? 'fa-trash' : 'fa-camera';
@@ -412,7 +554,6 @@ window.renderClassStudentsTable = function (students) {
             </td>
         `;
 
-        // Registra eventos via JS para suportar nomes com apóstrofos ou caracteres especiais
         tr.querySelector('.btn-facial-action').addEventListener('click', () => {
             if (hasFacial) {
                 removeStudentBiometrics(s.id, s.nome);
@@ -456,16 +597,14 @@ async function removeStudentBiometrics(studentId, studentName) {
         if (data.success) {
             showToast("Biometria removida com sucesso!", "success");
 
-            // Atualiza o cache local imediatamente
             if (window.knownStudentsCache) {
                 const cached = window.knownStudentsCache.find(s => s.id == studentId);
                 if (cached) {
                     cached.face_descriptor = null;
-                    cached.face_landmarks = null;
+                    cached.face_landmarks  = null;
                 }
             }
 
-            // Recarrega as tabelas e o cache de alunos
             if (typeof loadStudents === 'function') {
                 await loadStudents();
             }
@@ -494,7 +633,7 @@ window.filterClassStudents = function () {
  */
 window.addStudentToClassFromDetail = async function () {
     if (!currentManageClass) return;
-    const select = document.getElementById('select-add-student-detail');
+    const select    = document.getElementById('select-add-student-detail');
     const studentId = select.value;
 
     if (!studentId) return showToast("Selecione um aluno", "error");
@@ -540,31 +679,35 @@ async function updateStudentClassAPIDetail(studentId, newClassName) {
 }
 
 /**
- * Exclui a turma de dentro da visualização dedicada de detalhes.
+ * Desativa a turma de dentro da visualização dedicada de detalhes.
  */
 window.deleteCurrentClassFromDetail = async function () {
     if (!currentManageClass) return;
-    const id = currentManageClass.id;
+    const id   = currentManageClass.id;
     const name = currentManageClass.name;
 
-    const confirmed = await window.openConfirmModal("Excluir Turma Inteira", `ATENÇÃO: Deseja apagar a turma "${name}"?\nAlunos serão desvinculados e perderão a associação!`);
+    const confirmed = await window.openConfirmModal(
+        "Desativar Turma",
+        `Deseja desativar a turma "${name}"?\nOs alunos desta turma também serão desativados. Você poderá reativá-la depois.`,
+        "Sim, Desativar"
+    );
     if (!confirmed) return;
 
     try {
-        const res = await fetch(`api.php?action=delete_class&id=${id}`);
+        const res  = await fetch(`api.php?action=deactivate_class&id=${id}`);
         const data = await res.json();
 
         if (data.success) {
             showToast(data.message, "success");
             backToClassesGrid();
-            window.knownStudentsCache = null; // reseta alunos
+            window.knownStudentsCache = null;
             if (typeof loadStudents === 'function') await loadStudents();
             loadClasses();
         } else {
             showToast(data.message, "error");
         }
     } catch (err) {
-        showToast("Erro ao apagar", "error");
+        showToast("Erro ao desativar", "error");
     }
 }
 
@@ -576,11 +719,9 @@ window.handleExcelImport = async function (event) {
     const file = event.target.files[0];
     if (!file || !currentManageClass) return;
 
-    // Reseta o input do file para permitir nova seleção
     event.target.value = '';
 
-    // Validação de extensão no frontend (.xlsx, .xls e .csv)
-    if (!(/(\.xlsx|\.xls|\.csv)$/i.test(file.name))) {
+    if (!(/(\\.xlsx|\\.xls|\\.csv)$/i.test(file.name))) {
         showToast("Arquivo inválido. Envie apenas planilhas nos formatos .xlsx, .xls ou .csv", "error");
         return;
     }
@@ -590,7 +731,6 @@ window.handleExcelImport = async function (event) {
         return;
     }
 
-    // Bloqueio temporário para impedir cliques duplos simultâneos em memória
     const fileKey = `${currentManageClass.name}::${file.name}::${file.size}`;
     if (_importedFilesHistory[fileKey]) {
         showToast("Este arquivo já está sendo processado. Aguarde.", "info");
@@ -601,7 +741,6 @@ window.handleExcelImport = async function (event) {
     formData.append('excel_file', file);
     formData.append('className', currentManageClass.name);
 
-    // Registra o arquivo temporariamente no histórico de uploads ativos
     _importedFilesHistory[fileKey] = true;
 
     showToast("Importando alunos via planilha...", "info");
@@ -613,26 +752,22 @@ window.handleExcelImport = async function (event) {
             body: formData
         });
 
-        // Tenta ler o texto bruto antes de parsear JSON para evitar erros silenciosos
         const rawText = await res.text();
         try {
             data = JSON.parse(rawText);
         } catch (parseErr) {
             console.error("Resposta inválida do servidor:", rawText);
-            // Libera o bloqueio temporário em memória
             delete _importedFilesHistory[fileKey];
             showToast("Resposta inesperada do servidor. Verifique os logs.", "error");
             return;
         }
     } catch (networkErr) {
         console.error("Erro de rede ao importar:", networkErr);
-        // Libera o bloqueio temporário em memória
         delete _importedFilesHistory[fileKey];
         showToast("Falha de conexão ao tentar importar. Tente novamente.", "error");
         return;
     }
 
-    // Libera o bloqueio temporário de memória após a conclusão
     delete _importedFilesHistory[fileKey];
 
     if (data && data.success) {
@@ -642,10 +777,8 @@ window.handleExcelImport = async function (event) {
         }
         refreshStudentsDetailTable();
 
-        // Monta o modal de resultado sempre (sucesso total ou com avisos)
         _showImportResultModal(data, currentManageClass.name);
     } else if (data) {
-        // Exibe toast warning para duplicados exatos (já cadastrados) e error para falhas reais
         const toastType = data.code === 'already_imported' ? 'warning' : 'error';
         showToast(data.message || "Erro ao processar a importação.", toastType);
     }
@@ -655,15 +788,14 @@ window.handleExcelImport = async function (event) {
  * Monta e exibe o modal de resultado da importação com resumo completo.
  */
 function _showImportResultModal(data, className) {
-    const imported       = data.imported ?? 0;
-    const duplicates     = data.duplicates ?? 0;
-    const inOtherCls     = data.in_other_classes ?? 0;
-    const dupNames       = data.duplicate_names ?? [];
-    const otherClsNames  = data.in_other_class_names ?? [];
+    const imported   = data.imported    ?? 0;
+    const duplicates = data.duplicates  ?? 0;
+    const inOtherCls = data.in_other_classes  ?? 0;
+    const dupNames   = data.duplicate_names   ?? [];
+    const otherClsNames = data.in_other_class_names ?? [];
 
     let bodyHtml = '';
 
-    // ── Bloco de Resumo Principal ──
     if (imported === 0 && duplicates === 0) {
         bodyHtml += `
             <div style="text-align:center; padding: 0.5rem 0 1rem;">
@@ -675,13 +807,12 @@ function _showImportResultModal(data, className) {
             <div style="text-align:center; margin-bottom:1.25rem;">
                 <span style="font-size:1.05rem; color:var(--text-dark,#333);">
                     ${imported > 0
-                        ? `<strong>${imported}</strong> aluno(s) cadastrado(s) com sucesso na turma <strong>${className}</strong>.`
-                        : `Nenhum aluno novo foi adicionado à turma <strong>${className}</strong>.`}
+                ? `<strong>${imported}</strong> aluno(s) cadastrado(s) com sucesso na turma <strong>${className}</strong>.`
+                : `Nenhum aluno novo foi adicionado à turma <strong>${className}</strong>.`}
                 </span>
             </div>`;
     }
 
-    // ── Bloco de Duplicatas na Mesma Turma ──
     if (duplicates > 0) {
         const listHtml = dupNames.map(n => `<li style="margin-bottom:3px;">${n}</li>`).join('');
         bodyHtml += `
@@ -696,7 +827,6 @@ function _showImportResultModal(data, className) {
             </div>`;
     }
 
-    // ── Bloco de Nomes Existentes em Outras Turmas ──
     if (inOtherCls > 0) {
         const listHtml = otherClsNames.map(n => `<li style="margin-bottom:3px;">${n}</li>`).join('');
         bodyHtml += `
@@ -714,7 +844,6 @@ function _showImportResultModal(data, className) {
             </div>`;
     }
 
-    // ── Bloco de Alunos já nesta turma (duplicatas exatas) ──
     if (duplicates > 0 && imported === 0 && inOtherCls === 0) {
         bodyHtml += `
             <div style="text-align:center; padding: 0.5rem 0;">
@@ -725,7 +854,7 @@ function _showImportResultModal(data, className) {
     }
 
     const hasWarnings = duplicates > 0 || inOtherCls > 0;
-    const titleText   = imported > 0
+    const titleText = imported > 0
         ? (hasWarnings ? 'Importação com Avisos' : 'Importação Concluída')
         : 'Sem Alterações';
 
@@ -758,7 +887,7 @@ window.addNewStudentToCurrentClass = async function () {
 
         if (data.success) {
             showToast("Aluno cadastrado com sucesso!", "success");
-            window.knownStudentsCache = null; // reseta o cache de estudantes para forçar carregamento
+            window.knownStudentsCache = null;
             if (typeof loadStudents === 'function') {
                 await loadStudents();
             }

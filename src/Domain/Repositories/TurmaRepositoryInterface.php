@@ -11,8 +11,11 @@ use App\Domain\Entities\Turma;
 interface TurmaRepositoryInterface
 {
     public function getAll(): array;
+    public function getInactive(): array;
     public function create(string $nome): bool|string;
-    public function delete(int $id): bool;
+    public function delete(int $id, ?string $operador = null): bool;
+    public function deactivate(int $id, ?string $operador = null): bool;
+    public function activate(int $id, ?string $operador = null): bool;
     public function updateName(int $id, string $newName): bool;
     public function getByName(string $nome): ?Turma;
 }

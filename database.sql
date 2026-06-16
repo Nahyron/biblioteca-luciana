@@ -24,9 +24,10 @@ DROP TABLE IF EXISTS `turmas`;
 CREATE TABLE `turmas` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `nome` VARCHAR(255) NOT NULL,
+  `ativo` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `nome_UNIQUE` (`nome` ASC)
+  INDEX `idx_turma_nome` (`nome` ASC)
 )
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
@@ -79,6 +80,23 @@ CREATE TABLE IF NOT EXISTS `acessos_log` (
 )
 ENGINE = InnoDB
 AUTO_INCREMENT = 31
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Table `turmas_log`
+-- Registra ações de desativação e reativação de turmas inteiras.
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `turmas_log` (
+  `id`         INT NOT NULL AUTO_INCREMENT,
+  `turma_nome` VARCHAR(255) NOT NULL,
+  `acao`       ENUM('desativacao_turma','ativacao_turma') NOT NULL,
+  `operador`   VARCHAR(255) NULL,
+  `horario`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (`id`),
+  INDEX `idx_turma_log_horario` (`horario`)
+)
+ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 

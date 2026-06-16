@@ -392,41 +392,72 @@ class MySQLStudentRepository implements StudentRepositoryInterface
 
     public function getHistory(int $limit = 200, string $period = 'all', ?string $date = null, ?string $startDate = null, ?string $endDate = null): array
     {
-        $whereClause = "";
-        $params = [];
-        $types = "";
+        // --- Cláusula WHERE para os logs de alunos ---
+        $whereAluno = "";
+        $paramsAluno = [];
+        $typesAluno = "";
+
+        // --- Cláusula WHERE para os logs de turmas ---
+        $whereTurma = "";
+        $paramsTurma = [];
+        $typesTurma = "";
 
         if ($startDate && $endDate) {
-            $whereClause = "WHERE DATE(al.horario_entrada) BETWEEN ? AND ?";
-            $params[] = $startDate;
-            $params[] = $endDate;
-            $types .= "ss";
+            $whereAluno = "WHERE DATE(al.horario_entrada) BETWEEN ? AND ?";
+            $paramsAluno = [$startDate, $endDate];
+            $typesAluno  = "ss";
+
+            $whereTurma = "WHERE DATE(tl.horario) BETWEEN ? AND ?";
+            $paramsTurma = [$startDate, $endDate];
+            $typesTurma  = "ss";
         } elseif ($period === 'today') {
             $refDate = $date && !empty($date) ? $date : date('Y-m-d');
-            $whereClause = "WHERE DATE(al.horario_entrada) = ?";
-            $params[] = $refDate;
-            $types .= "s";
+            $whereAluno = "WHERE DATE(al.horario_entrada) = ?";
+            $paramsAluno = [$refDate];
+            $typesAluno  = "s";
+
+            $whereTurma = "WHERE DATE(tl.horario) = ?";
+            $paramsTurma = [$refDate];
+            $typesTurma  = "s";
         } elseif ($period === 'week') {
             $refDate = $date && !empty($date) ? $date : date('Y-m-d');
-            $whereClause = "WHERE YEARWEEK(al.horario_entrada, 1) = YEARWEEK(?, 1)";
-            $params[] = $refDate;
-            $types .= "s";
+            $whereAluno = "WHERE YEARWEEK(al.horario_entrada, 1) = YEARWEEK(?, 1)";
+            $paramsAluno = [$refDate];
+            $typesAluno  = "s";
+
+            $whereTurma = "WHERE YEARWEEK(tl.horario, 1) = YEARWEEK(?, 1)";
+            $paramsTurma = [$refDate];
+            $typesTurma  = "s";
         } elseif ($period === 'month') {
             $refDate = $date && !empty($date) ? $date : date('Y-m-d');
-            $whereClause = "WHERE MONTH(al.horario_entrada) = MONTH(?) AND YEAR(al.horario_entrada) = YEAR(?)";
-            $params[] = $refDate;
-            $params[] = $refDate;
-            $types .= "ss";
+            $whereAluno = "WHERE MONTH(al.horario_entrada) = MONTH(?) AND YEAR(al.horario_entrada) = YEAR(?)";
+            $paramsAluno = [$refDate, $refDate];
+            $typesAluno  = "ss";
+
+            $whereTurma = "WHERE MONTH(tl.horario) = MONTH(?) AND YEAR(tl.horario) = YEAR(?)";
+            $paramsTurma = [$refDate, $refDate];
+            $typesTurma  = "ss";
         }
 
-        $params[] = $limit;
-        $types   .= "i";
+        // Monta UNION ALL: logs de alunos + logs de turmas
+        $sql = "
+            SELECT al.id, u.nome, u.turma, al.horario_entrada, al.acao, al.operador, 'aluno' AS tipo
+            FROM acessos_log al
+            JOIN usuarios u ON al.usuario_id = u.id
+            {$whereAluno}
 
-        $sql = "SELECT al.id, u.nome, u.turma, al.horario_entrada, al.acao, al.operador 
-                FROM acessos_log al
-                JOIN usuarios u ON al.usuario_id = u.id
-                {$whereClause}
-                ORDER BY al.horario_entrada DESC LIMIT ?";
+            UNION ALL
+
+            SELECT tl.id, tl.turma_nome AS nome, NULL AS turma, tl.horario AS horario_entrada, tl.acao, tl.operador, 'turma' AS tipo
+            FROM turmas_log tl
+            {$whereTurma}
+
+            ORDER BY horario_entrada DESC
+            LIMIT ?
+        ";
+
+        $params = array_merge($paramsAluno, $paramsTurma, [$limit]);
+        $types  = $typesAluno . $typesTurma . "i";
 
         $stmt = $this->db->prepare($sql);
         if (!$stmt) return [];
@@ -437,7 +468,7 @@ class MySQLStudentRepository implements StudentRepositoryInterface
 
         $stmt->execute();
         $result = $stmt->get_result();
-        $data = $result->fetch_all(MYSQLI_ASSOC);
+        $data   = $result->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
 
         return $data;

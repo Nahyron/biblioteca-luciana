@@ -67,8 +67,43 @@ function renderHistoryTable(data) {
         const tr = document.createElement('tr');
         
         let nomeHtml = `<strong style="color: var(--text, #1a1a2e);">${log.nome}</strong>`;
+        let turmaHtml = log.turma || 'N/A';
         let timestampHtml = window.safeFormatLocaleString(log.horario_entrada);
-        
+
+        // --- Entradas de TURMA (desativação/reativação de turma inteira) ---
+        if (log.tipo === 'turma' || log.acao === 'desativacao_turma' || log.acao === 'ativacao_turma') {
+            const isDeactivation = (log.acao === 'desativacao_turma');
+            const bgColor  = isDeactivation ? 'rgba(220,53,69,0.05)'  : 'rgba(25,135,84,0.05)';
+            const border   = isDeactivation ? '2px solid #dc3545'      : '2px solid #198754';
+            const badgeBg  = isDeactivation ? '#dc3545' : '#198754';
+            const icon     = isDeactivation ? 'fa-ban' : 'fa-check-circle';
+            const label    = isDeactivation ? 'Turma Desativada' : 'Turma Reativada';
+
+            tr.style.background = bgColor;
+            tr.style.borderLeft = border;
+
+            tr.innerHTML = `
+                <td style="text-align:center;color:#888;">#${log.id}</td>
+                <td colspan="2">
+                    <span style="display:inline-flex;align-items:center;gap:8px;font-weight:700;color:${badgeBg};">
+                        <i class="fas ${icon}"></i>
+                        <span>${label}:</span>
+                        <span style="font-size:1rem;color:#333;">${log.nome}</span>
+                    </span>
+                </td>
+                <td style="text-align:center;font-size:0.9rem;">
+                    ${window.safeFormatLocaleString(log.horario_entrada)}
+                    <br>
+                    <span style="font-size:0.78rem;color:#777;font-weight:600;background:#f0f0f0;padding:2px 6px;border-radius:4px;border:1px solid #ddd;margin-top:4px;display:inline-block;">
+                        <i class="fas fa-user-shield"></i> Por: ${log.operador || 'Sistema'}
+                    </span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            return;
+        }
+
+        // --- Entradas de ALUNO ---
         if (log.acao === 'desativacao') {
             nomeHtml = `<span style="color: #dc3545; font-weight: 700;"><i class="fas fa-user-slash" style="margin-right: 5px;"></i>${log.nome} (Desativado)</span>`;
             timestampHtml = `${window.safeFormatLocaleString(log.horario_entrada)} <br> <span style="font-size: 0.78rem; color: #777; font-weight: 600; background: #ffebeb; padding: 2px 6px; border-radius: 4px; border: 1px solid #ffcccc; margin-top: 4px; display: inline-block;"><i class="fas fa-user-shield"></i> Por: ${log.operador || 'Sistema'}</span>`;
@@ -80,7 +115,7 @@ function renderHistoryTable(data) {
         tr.innerHTML = `
             <td style="text-align:center;color:#888;">#${log.id}</td>
             <td>${nomeHtml}</td>
-            <td style="text-align:center;color:#555;">${log.turma || 'N/A'}</td>
+            <td style="text-align:center;color:#555;">${turmaHtml}</td>
             <td style="text-align:center;font-size:0.9rem;">${timestampHtml}</td>
         `;
         tbody.appendChild(tr);

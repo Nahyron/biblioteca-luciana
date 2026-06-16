@@ -15,7 +15,12 @@ class TurmaService
     public function listAll(): array
     {
         $turmas = $this->repository->getAll();
-        // Converte entidades em arrays simples para o controller/JSON
+        return array_map(fn($t) => $t->toArray(), $turmas);
+    }
+
+    public function listInactive(): array
+    {
+        $turmas = $this->repository->getInactive();
         return array_map(fn($t) => $t->toArray(), $turmas);
     }
 
@@ -35,9 +40,28 @@ class TurmaService
         return $this->repository->create($nomeClean);
     }
 
-    public function delete(int $id): bool
+    /**
+     * Desativa a turma (soft delete) em vez de excluir permanentemente.
+     */
+    public function deactivate(int $id, ?string $operador = null): bool
     {
-        return $this->repository->delete($id);
+        return $this->repository->deactivate($id, $operador);
+    }
+
+    /**
+     * Ativa uma turma desativada. Permite ativar mesmo com mesmo nome de outra ativa.
+     */
+    public function activate(int $id, ?string $operador = null): bool
+    {
+        return $this->repository->activate($id, $operador);
+    }
+
+    /**
+     * Alias para compatibilidade — delega para deactivate.
+     */
+    public function delete(int $id, ?string $operador = null): bool
+    {
+        return $this->deactivate($id, $operador);
     }
 
     public function updateName(int $id, string $newName): bool

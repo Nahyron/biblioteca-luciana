@@ -49,6 +49,16 @@ try {
     // Obtém a ação solicitada via URL (ex: api.php?action=list_students)
     $action = $_GET['action'] ?? '';
 
+    // Se o usuário precisa alterar a senha de forma obrigatória, bloqueia qualquer ação que não seja 'change_own_password'
+    if ($action !== 'change_own_password' && \App\Infrastructure\Auth\SessionAuth::isAuthenticated() && \App\Infrastructure\Auth\SessionAuth::shouldForcePasswordChange()) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Troca de senha obrigatória pendente. Você deve alterar sua senha antes de realizar qualquer outra ação.'
+        ]);
+        exit;
+    }
+
     // Roteamento manual baseado na ação
     switch ($action) {
 
@@ -143,14 +153,58 @@ try {
             echo json_encode($classController->listAll());
             break;
 
+        case 'list_inactive_classes':
+            echo json_encode($classController->listInactive());
+            break;
+
         case 'create_class':
             $data = json_decode(file_get_contents('php://input'), true);
             echo json_encode($classController->create($data));
             break;
 
         case 'delete_class':
+        case 'deactivate_class':
             $id = (int)($_GET['id'] ?? 0);
-            echo json_encode($classController->delete($id));
+            $operadorId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $operadorTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            $operadorNome = 'Sistema';
+            
+            if ($operadorId > 0) {
+                $table = $operadorTipo === 'admin' ? 'admins' : 'professores';
+                $stmtOp = $db->prepare("SELECT usuario FROM {$table} WHERE id = ? LIMIT 1");
+                if ($stmtOp) {
+                    $stmtOp->bind_param("i", $operadorId);
+                    $stmtOp->execute();
+                    $resOp = $stmtOp->get_result();
+                    if ($resOp && $rowOp = $resOp->fetch_assoc()) {
+                        $operadorNome = $rowOp['usuario'] . ' (' . ($operadorTipo === 'admin' ? 'Admin' : 'Professor') . ')';
+                    }
+                    $stmtOp->close();
+                }
+            }
+            echo json_encode($classController->deactivate($id, $operadorNome));
+            break;
+
+        case 'activate_class':
+            $id = (int)($_GET['id'] ?? 0);
+            $operadorId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $operadorTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            $operadorNome = 'Sistema';
+            
+            if ($operadorId > 0) {
+                $table = $operadorTipo === 'admin' ? 'admins' : 'professores';
+                $stmtOp = $db->prepare("SELECT usuario FROM {$table} WHERE id = ? LIMIT 1");
+                if ($stmtOp) {
+                    $stmtOp->bind_param("i", $operadorId);
+                    $stmtOp->execute();
+                    $resOp = $stmtOp->get_result();
+                    if ($resOp && $rowOp = $resOp->fetch_assoc()) {
+                        $operadorNome = $rowOp['usuario'] . ' (' . ($operadorTipo === 'admin' ? 'Admin' : 'Professor') . ')';
+                    }
+                    $stmtOp->close();
+                }
+            }
+            echo json_encode($classController->activate($id, $operadorNome));
             break;
 
         case 'update_class':

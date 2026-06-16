@@ -11,7 +11,8 @@ class Turma
     public function __construct(
         public ?int $id = null,
         public string $nome = "",
-        public ?string $createdAt = null
+        public ?string $createdAt = null,
+        public int $ativo = 1
     ) {}
 
     /**
@@ -20,9 +21,10 @@ class Turma
     public function toArray(): array
     {
         return [
-            'id' => $this->id,
-            'nome' => $this->nome,
-            'created_at' => $this->createdAt
+            'id'         => $this->id,
+            'nome'       => $this->nome,
+            'created_at' => $this->createdAt,
+            'ativo'      => $this->ativo
         ];
     }
 }

@@ -6,7 +6,10 @@
         <h1>SISTEMA</h1>
         <div class="senai-logo"><?php echo APP_NAME_SHORT; ?></div>
     </div>
-    <ul class="nav-links">
+    <?php
+    $forceChange = \App\Infrastructure\Auth\SessionAuth::isAuthenticated() && \App\Infrastructure\Auth\SessionAuth::shouldForcePasswordChange();
+    ?>
+    <ul class="nav-links" style="<?php echo $forceChange ? 'pointer-events: none; opacity: 0.45; filter: grayscale(0.8); cursor: not-allowed;' : ''; ?>">
         <li class="<?php echo (isset($currentPage) && $currentPage === 'controle') ? 'active' : ''; ?>" onclick="window.location.href='controle.php'">
             <i class="fas fa-camera"></i> Reconhecimento
         </li>
