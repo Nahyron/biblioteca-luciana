@@ -566,6 +566,15 @@ try {
             echo json_encode($adminController->delete($id, $currentId, $currentTipo, $targetTipo));
             break;
 
+        case 'update_admin_name':
+            $data        = json_decode(file_get_contents('php://input'), true);
+            $id          = (int)($data['id'] ?? 0);
+            $novoNome    = $data['novo_nome'] ?? '';
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            echo json_encode($adminController->updateName($id, $novoNome, $currentTipo));
+            break;
+
+
         case 'change_own_password':
             if (!\App\Infrastructure\Auth\SessionAuth::isAuthenticated()) {
                 echo json_encode(['success' => false, 'message' => 'Não autenticado.']);

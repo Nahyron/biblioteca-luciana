@@ -249,4 +249,53 @@
         </div>
     </div>
 
+<!-- ════════════════════════════════════════
+     MODAL: EDITAR NOME DO PROFESSOR
+════════════════════════════════════════ -->
+<div id="modal-edit-admin-name" class="modal-overlay" style="z-index: 9999;">
+    <div class="modal-content" style="max-width: 420px;">
+        <h2 style="font-size: 1.3rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-edit" style="color: #0d6efd; font-size: 1.1rem;"></i> Editar Nome do Professor
+        </h2>
+
+        <p id="edit-admin-name-label" style="font-size: 0.85rem; color: #888; margin-bottom: 1.25rem;"></p>
+
+        <input type="hidden" id="edit-admin-name-id">
+
+        <div class="form-group">
+            <label style="font-size: 0.78rem; font-weight: 700; color: #555;
+                          text-transform: uppercase; letter-spacing: 0.5px;">
+                <i class="fas fa-user" style="margin-right: 4px;"></i> Novo Nome
+            </label>
+            <input type="text" id="edit-admin-name-input"
+                placeholder="Ex: prof.santos"
+                autocomplete="off"
+                onkeydown="if(event.key==='Enter') saveAdminName()"
+                style="width: 100%; padding: 0.75rem 1rem; border: 1px solid #ddd; border-radius: 8px;
+                       font-size: 0.95rem; box-sizing: border-box; transition: border-color 0.2s; margin-top: 0.4rem;"
+                onfocus="this.style.borderColor='#0d6efd'"
+                onblur="this.style.borderColor='#ddd'">
+            <p style="font-size: 0.78rem; color: #aaa; margin-top: 0.4rem; margin-bottom: 0;">
+                Use apenas letras, números, ponto, hífen ou @.
+            </p>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 1.5rem;">
+            <button onclick="closeEditAdminNameModal()"
+                style="padding: 0.65rem 1.2rem; border: 1px solid #ddd; border-radius: 8px;
+                       background: #fff; color: #666; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
+                Cancelar
+            </button>
+            <button id="edit-admin-name-save-btn" onclick="saveAdminName()"
+                style="padding: 0.65rem 1.4rem; background: #0d6efd; color: #fff; border: none;
+                       border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem;
+                       display: flex; align-items: center; gap: 6px; transition: background 0.2s;"
+                onmouseover="this.style.background='#0b5ed7'"
+                onmouseout="this.style.background='#0d6efd'">
+                <i class="fas fa-save"></i> Salvar
+            </button>
+        </div>
+    </div>
+</div>
+
 </section>

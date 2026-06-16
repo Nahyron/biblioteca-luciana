@@ -220,6 +220,52 @@ class AdminController
     }
 
     /**
+     * Atualiza o nome de usuário (login) de um professor.
+     * Apenas administradores podem executar esta operação.
+     */
+    public function updateName(int $id, string $novoNome, string $currentAdminTipo = 'professor'): array
+    {
+        if ($currentAdminTipo !== 'admin') {
+            return ['success' => false, 'message' => 'Apenas administradores podem alterar o nome de professores.'];
+        }
+
+        if ($id <= 0) return ['success' => false, 'message' => 'ID inválido.'];
+
+        $novoNome = trim($novoNome);
+
+        if (empty($novoNome)) {
+            return ['success' => false, 'message' => 'O nome não pode estar vazio.'];
+        }
+
+        if (!preg_match('/^[A-Za-z0-9._\-@]+$/', $novoNome)) {
+            return ['success' => false, 'message' => 'Nome inválido. Use apenas letras, números, ponto, hífen ou @.'];
+        }
+
+        $stmt = $this->db->prepare("UPDATE professores SET usuario = ? WHERE id = ?");
+        if (!$stmt) return ['success' => false, 'message' => 'Erro interno ao preparar atualização.'];
+
+        $stmt->bind_param("si", $novoNome, $id);
+        $result   = $stmt->execute();
+        $errno    = $this->db->errno;
+        $affected = $stmt->affected_rows;
+        $stmt->close();
+
+        if (!$result) {
+            if ($errno === 1062) {
+                return ['success' => false, 'message' => "O nome \"{$novoNome}\" já está em uso por outro professor."];
+            }
+            return ['success' => false, 'message' => 'Erro ao atualizar nome. Tente novamente.'];
+        }
+
+        if ($affected === 0) {
+            return ['success' => false, 'message' => 'Professor não encontrado ou nome já é o mesmo.'];
+        }
+
+        return ['success' => true, 'message' => "Nome atualizado para \"{$novoNome}\" com sucesso!"];
+    }
+
+
+    /**
      * Altera a senha do próprio usuário logado (usado quando a troca de senha é obrigatória).
      */
     public function changeOwnPassword(int $id, string $tipo, string $novaSenha): array

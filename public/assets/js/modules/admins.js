@@ -125,6 +125,24 @@ async function loadAdmins(tipo) {
                                     buttons += `<span style="color: #999; font-size: 0.8rem; font-style: italic;">Sem permissões</span>`;
                                 }
                             } else {
+                                // Botão editar nome — apenas para professores
+                                if (tipo === 'professor') {
+                                    const safeName = admin.usuario.replace(/"/g, '&quot;');
+                                    buttons += `
+                                        <button
+                                            data-edit-id="${admin.id}"
+                                            data-edit-nome="${safeName}"
+                                            onclick="openEditAdminNameModal(this)"
+                                            style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; cursor: pointer;
+                                                   border: 1px solid #0d6efd; background: rgba(13,110,253,0.06); color: #0d6efd;
+                                                   font-weight: 600; display: flex; align-items: center; gap: 5px;
+                                                   transition: all 0.2s ease;"
+                                            onmouseover="this.style.background='rgba(13,110,253,0.15)'"
+                                            onmouseout="this.style.background='rgba(13,110,253,0.06)'">
+                                            <i class="fas fa-edit"></i> Editar Nome
+                                        </button>
+                                    `;
+                                }
                                 buttons += `
                                     <button onclick="resetAdminPassword(${admin.id}, '${admin.usuario}')"
                                         style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; cursor: pointer;
@@ -379,5 +397,58 @@ window.deleteSelectedAdmins = async function (tipo) {
         loadAdmins(tipo); // Recarrega a tabela correspondente
     } catch (err) {
         showToast("Erro de comunicação ao processar exclusão em lote.", 'error');
+    }
+};
+
+/**
+ * Abre o modal customizado para editar o nome de um professor.
+ */
+window.openEditAdminNameModal = function (btn) {
+    const id   = btn.getAttribute('data-edit-id');
+    const nome = btn.getAttribute('data-edit-nome');
+
+    document.getElementById('edit-admin-name-id').value    = id;
+    document.getElementById('edit-admin-name-input').value = nome;
+    document.getElementById('edit-admin-name-label').textContent = `Nome atual: ${nome}`;
+
+    document.getElementById('modal-edit-admin-name').classList.add('active');
+    setTimeout(() => document.getElementById('edit-admin-name-input').select(), 100);
+};
+
+window.closeEditAdminNameModal = function () {
+    document.getElementById('modal-edit-admin-name').classList.remove('active');
+};
+
+window.saveAdminName = async function () {
+    const id       = document.getElementById('edit-admin-name-id').value;
+    const novoNome = document.getElementById('edit-admin-name-input').value.trim();
+
+    if (!novoNome) {
+        showToast('O nome não pode estar vazio.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('edit-admin-name-save-btn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+    try {
+        const res  = await fetch(`${window.API_URL}?action=update_admin_name`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ id: parseInt(id), novo_nome: novoNome })
+        });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            window.closeEditAdminNameModal();
+            loadAdmins('professor');
+        }
+    } catch (err) {
+        showToast('Erro de conexão ao atualizar nome.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
     }
 };
