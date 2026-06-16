@@ -61,18 +61,25 @@
             
             <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                 <!-- Botão de Adicionar Aluno Manualmente -->
-                <button class="btn-primary" onclick="addNewStudentToCurrentClass()" style="display: flex; align-items: center; gap: 6px;">
+                <button id="btn-new-student" class="btn-primary" onclick="addNewStudentToCurrentClass()" style="display: flex; align-items: center; gap: 6px;">
                     <i class="fas fa-user-plus"></i> Novo Aluno
                 </button>
 
                 <!-- Botão de Importação de Planilhas/CSV -->
-                <button class="btn-primary" onclick="triggerExcelImport()" style="display: flex; align-items: center; gap: 6px; background-color: #2ec4b6; border-color: #2ec4b6;">
+                <button id="btn-import-students" class="btn-primary" onclick="triggerExcelImport()" style="display: flex; align-items: center; gap: 6px; background-color: #2ec4b6; border-color: #2ec4b6;">
                     <i class="fas fa-file-excel"></i> Importar Alunos (Excel, CSV, XLS)
                 </button>
                 <input type="file" id="excel-import-file" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelImport(event)">
                 
+                <?php if (\App\Infrastructure\Auth\SessionAuth::getAdminTipo() === 'admin'): ?>
+                <!-- Professores Autorizados -->
+                <button id="btn-class-permissions" class="btn-primary" onclick="openClassPermissionsModal()" style="display: flex; align-items: center; gap: 6px; background-color: #f77f00; border-color: #f77f00;">
+                    <i class="fas fa-user-lock"></i> Professores Autorizados
+                </button>
+                <?php endif; ?>
+
                 <!-- Desativar Turma Inteira -->
-                <button class="btn-action btn-delete" onclick="deleteCurrentClassFromDetail()" style="padding: 0.6rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                <button id="btn-deactivate-class" class="btn-action btn-delete" onclick="deleteCurrentClassFromDetail()" style="padding: 0.6rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
                     <i class="fas fa-ban"></i> Desativar Turma
                 </button>
             </div>
@@ -98,7 +105,7 @@
                 </div>
 
                 <!-- Adicionar Aluno Existente (Vincular) -->
-                <div style="display: flex; align-items: center; gap: 0.5rem; border-left: 1px solid #eee; padding-left: 1rem;">
+                <div id="vincular-student-container" style="display: flex; align-items: center; gap: 0.5rem; border-left: 1px solid #eee; padding-left: 1rem;">
                     <select id="select-add-student-detail" style="padding: 0.55rem 1rem; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; max-width: 200px; outline: none; background: #fff;">
                         <option value="" disabled selected>Vincular aluno...</option>
                     </select>
@@ -121,6 +128,35 @@
                     <!-- Preenchido dinamicamente via JS -->
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Modal: Professores Autorizados para Gerenciar Turma -->
+    <div id="modal-class-permissions" class="modal-overlay">
+        <div class="modal-content" style="max-width: 450px; border-top: 4px solid #f77f00;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                <h3 style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-user-lock" style="color: #f77f00;"></i> Professores Autorizados
+                </h3>
+                <button onclick="closeClassPermissionsModal()" style="background: none; border: none; font-size: 1.25rem; color: #aaa; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#777'" onmouseout="this.style.color='#aaa'">&times;</button>
+            </div>
+            
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 1rem;">
+                Selecione quais professores possuem permissão para gerenciar os alunos desta turma. 
+                <br><em>Obs: O criador original da turma sempre terá acesso garantido.</em>
+            </p>
+            
+            <!-- Lista de Professores com Checkbox -->
+            <div id="class-permissions-list" style="max-height: 250px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 0.5rem; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 8px;">
+                <div style="text-align: center; color: #999; padding: 1rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Carregando professores...
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-secondary" onclick="closeClassPermissionsModal()" style="padding: 0.6rem 1.2rem; border-radius: 8px;">Cancelar</button>
+                <button class="btn-primary" onclick="saveClassPermissions()" style="padding: 0.6rem 1.2rem; border-radius: 8px; background-color: #f77f00; border-color: #f77f00;">Salvar Permissões</button>
+            </div>
         </div>
     </div>
 </section>

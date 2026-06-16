@@ -10,22 +10,30 @@ use App\Application\Services\TurmaService;
  */
 class TurmaController
 {
-    public function __construct(private TurmaService $service) {}
+    public function __construct(private TurmaService $service, private \mysqli $db) {}
 
-    public function listAll(): array
+    public function listAll(int $currentUserId = 0, string $currentUserTipo = 'professor'): array
     {
-        return $this->service->listAll();
+        $turmas = $this->service->listAll();
+        foreach ($turmas as &$t) {
+            $t['can_manage'] = \App\Infrastructure\Auth\SessionAuth::canManageClass($this->db, $currentUserId, $currentUserTipo, (int)$t['id']);
+        }
+        return $turmas;
     }
 
-    public function listInactive(): array
+    public function listInactive(int $currentUserId = 0, string $currentUserTipo = 'professor'): array
     {
-        return $this->service->listInactive();
+        $turmas = $this->service->listInactive();
+        foreach ($turmas as &$t) {
+            $t['can_manage'] = \App\Infrastructure\Auth\SessionAuth::canManageClass($this->db, $currentUserId, $currentUserTipo, (int)$t['id']);
+        }
+        return $turmas;
     }
 
-    public function create(array $data): array
+    public function create(array $data, ?int $criadorId = null, ?string $criadorTipo = null): array
     {
         $nome   = $data['nome'] ?? '';
-        $result = $this->service->create($nome);
+        $result = $this->service->create($nome, $criadorId, $criadorTipo);
 
         if ($result === true) {
             return ['success' => true, 'message' => 'Turma criada com sucesso!'];
@@ -37,11 +45,21 @@ class TurmaController
     }
 
     /**
-    /**
      * Desativa a turma (soft delete). Alunos desta turma também são desativados.
      */
-    public function deactivate(int $id, ?string $operador = null): array
+    public function deactivate(int $id, ?string $operador = null, int $currentUserId = 0, string $currentUserTipo = 'professor'): array
     {
+        $turma = $this->service->getById($id);
+        if (!$turma) {
+            return ['success' => false, 'message' => 'Turma não encontrada.'];
+        }
+
+        if ($currentUserTipo === 'professor') {
+            if (!\App\Infrastructure\Auth\SessionAuth::canManageClass($this->db, $currentUserId, $currentUserTipo, $id)) {
+                return ['success' => false, 'message' => 'Você não tem permissão para gerenciar esta turma, pois ela pertence a outro professor.'];
+            }
+        }
+
         $success = $this->service->deactivate($id, $operador);
         return [
             'success' => $success,
@@ -54,8 +72,19 @@ class TurmaController
     /**
      * Ativa uma turma desativada.
      */
-    public function activate(int $id, ?string $operador = null): array
+    public function activate(int $id, ?string $operador = null, int $currentUserId = 0, string $currentUserTipo = 'professor'): array
     {
+        $turma = $this->service->getById($id);
+        if (!$turma) {
+            return ['success' => false, 'message' => 'Turma não encontrada.'];
+        }
+
+        if ($currentUserTipo === 'professor') {
+            if (!\App\Infrastructure\Auth\SessionAuth::canManageClass($this->db, $currentUserId, $currentUserTipo, $id)) {
+                return ['success' => false, 'message' => 'Você não tem permissão para gerenciar esta turma, pois ela pertence a outro professor.'];
+            }
+        }
+
         $success = $this->service->activate($id, $operador);
         return [
             'success' => $success,
@@ -68,13 +97,24 @@ class TurmaController
     /**
      * Alias para compatibilidade — delega para deactivate.
      */
-    public function delete(int $id, ?string $operador = null): array
+    public function delete(int $id, ?string $operador = null, int $currentUserId = 0, string $currentUserTipo = 'professor'): array
     {
-        return $this->deactivate($id, $operador);
+        return $this->deactivate($id, $operador, $currentUserId, $currentUserTipo);
     }
 
-    public function updateName(int $id, string $newName): array
+    public function updateName(int $id, string $newName, int $currentUserId = 0, string $currentUserTipo = 'professor'): array
     {
+        $turma = $this->service->getById($id);
+        if (!$turma) {
+            return ['success' => false, 'message' => 'Turma não encontrada.'];
+        }
+
+        if ($currentUserTipo === 'professor') {
+            if (!\App\Infrastructure\Auth\SessionAuth::canManageClass($this->db, $currentUserId, $currentUserTipo, $id)) {
+                return ['success' => false, 'message' => 'Você não tem permissão para gerenciar esta turma, pois ela pertence a outro professor.'];
+            }
+        }
+
         $success = $this->service->updateName($id, $newName);
         return [
             'success' => $success,

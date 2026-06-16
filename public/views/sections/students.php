@@ -10,6 +10,9 @@
                 <button id="toggle-inactive-btn" class="btn-secondary" onclick="toggleInactiveMode()" style="padding: 0.5rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; border: 1px solid #6C757D; color: #6C757D; background: transparent; height: fit-content; border-radius: 8px; font-weight: 700; cursor: pointer; transition: var(--transition);">
                     <i class="fas fa-user-slash"></i> Ver Alunos Inativos
                 </button>
+                <button id="btn-delete-selected-students" class="btn-danger" onclick="deleteSelectedStudents()" style="padding: 0.5rem 1rem; font-size: 0.85rem; display: none; align-items: center; gap: 0.5rem; background-color: #dc3545; color: white; border: none; height: fit-content; border-radius: 8px; font-weight: 700; cursor: pointer; transition: var(--transition);">
+                    <i class="fas fa-trash-alt"></i> Desativar Selecionados
+                </button>
             </div>
             <div style="display: flex; gap: 10px; align-items: center;">
                 <input type="text" id="search-student-name" onkeyup="filterStudents()"
@@ -27,6 +30,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-students" onclick="toggleAllStudents(this)"></th>
                         <th>ID</th>
                         <th>Nome</th>
                         <th>Matrícula/Turma</th>

@@ -39,9 +39,17 @@ async function loadAdmins(tipo) {
     const tbody = document.getElementById(`admins-table-body-${tipo}`);
     if (!tbody) return;
 
+    // Reset da seleção em lote ao recarregar a lista
+    const masterCb = document.getElementById(`select-all-${tipo}`);
+    if (masterCb) masterCb.checked = false;
+    const btnDelete = document.getElementById(`btn-delete-selected-${tipo}`);
+    if (btnDelete) btnDelete.style.display = 'none';
+
+    const colspanVal = window.CURRENT_USER_TIPO === 'admin' ? 5 : 4;
+
     tbody.innerHTML = `
         <tr>
-            <td colspan="4" style="text-align:center; padding:2.5rem; color:#aaa;">
+            <td colspan="${colspanVal}" style="text-align:center; padding:2.5rem; color:#aaa;">
                 <i class="fas fa-spinner fa-spin"></i> Carregando...
             </td>
         </tr>`;
@@ -51,7 +59,7 @@ async function loadAdmins(tipo) {
         const data     = await response.json();
 
         if (!Array.isArray(data)) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#cc0000; padding:2rem;">Erro ao carregar dados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${colspanVal}" style="text-align:center; color:#cc0000; padding:2rem;">Erro ao carregar dados.</td></tr>`;
             return;
         }
 
@@ -59,7 +67,7 @@ async function loadAdmins(tipo) {
             const label = tipo === 'admin' ? 'administradores' : 'professores';
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="4" style="text-align:center; padding:2.5rem; color:#bbb;">
+                    <td colspan="${colspanVal}" style="text-align:center; padding:2.5rem; color:#bbb;">
                         <i class="fas fa-user-slash" style="font-size:1.5rem; display:block; margin-bottom:0.5rem;"></i>
                         Nenhum ${label} cadastrado ainda.
                     </td>
@@ -74,7 +82,18 @@ async function loadAdmins(tipo) {
                 : admin.criado_at;
 
             const tr = document.createElement('tr');
+
+            let checkboxCol = '';
+            if (window.CURRENT_USER_TIPO === 'admin') {
+                checkboxCol = `
+                    <td style="padding: 12px 16px; text-align: center;">
+                        <input type="checkbox" class="${tipo}-select" value="${admin.id}" onclick="updateSelectedAdminsState('${tipo}')">
+                    </td>
+                `;
+            }
+
             tr.innerHTML = `
+                ${checkboxCol}
                 <td style="padding: 12px 16px; color: #888; font-size: 0.85rem;">${admin.id}</td>
                 <td style="padding: 12px 16px;">
                     <div style="display: flex; align-items: center; gap: 0.6rem;">
@@ -137,7 +156,7 @@ async function loadAdmins(tipo) {
 
     } catch (err) {
         console.error('Erro ao carregar usuários:', err);
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#cc0000; padding:2rem;">Falha na conexão. Tente novamente.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colspanVal}" style="text-align:center; color:#cc0000; padding:2rem;">Falha na conexão. Tente novamente.</td></tr>`;
     }
 }
 
@@ -199,7 +218,7 @@ async function resetAdminPassword(id, usuario) {
     if (!confirmed) return;
 
     try {
-        const res  = await fetch(`${window.API_URL}?action=reset_admin_password&id=${id}`);
+        const res  = await fetch(`${window.API_URL}?action=reset_admin_password&id=${id}&tipo=${_currentAdminTab}`);
         const data = await res.json();
         showToast(data.message, data.success ? 'success' : 'error');
     } catch (err) {
@@ -219,7 +238,7 @@ async function deleteAdmin(id, usuario) {
     if (!confirmed) return;
 
     try {
-        const res  = await fetch(`${window.API_URL}?action=delete_admin&id=${id}`);
+        const res  = await fetch(`${window.API_URL}?action=delete_admin&id=${id}&tipo=${_currentAdminTab}`);
         const data = await res.json();
 
         if (data.success) {
@@ -239,3 +258,126 @@ document.addEventListener('DOMContentLoaded', () => {
         switchAdminTab('admin');
     }
 });
+
+window.triggerTeacherExcelImport = function () {
+    document.getElementById('teacher-excel-import-file').click();
+}
+
+window.handleTeacherExcelImport = async function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    event.target.value = '';
+
+    if (!(/(\.xlsx|\.xls|\.csv)$/i.test(file.name))) {
+        showToast("Arquivo inválido. Envie apenas planilhas nos formatos .xlsx, .xls ou .csv", "error");
+        return;
+    }
+
+    if (file.size === 0) {
+        showToast("O arquivo selecionado está vazio.", "error");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('excel_file', file);
+
+    showToast("Importando professores via planilha...", "info");
+
+    try {
+        const res = await fetch('api.php?action=import_teachers_excel', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            showToast(`${data.imported} professores importados com sucesso! Duplicados: ${data.duplicates}, Erros: ${data.errors}`, "success");
+            loadAdmins('professor');
+        } else {
+            showToast(data.message || "Erro ao importar professores.", "error");
+        }
+    } catch (err) {
+        console.error("Erro ao importar:", err);
+        showToast("Erro de conexão ao tentar importar.", "error");
+    }
+}
+
+/**
+ * Alterna a seleção de todos os usuários (admin ou professor) na tabela com base no checkbox mestre.
+ */
+window.toggleAllAdmins = function (masterCb, tipo) {
+    const checkboxes = document.querySelectorAll(`.${tipo}-select`);
+    checkboxes.forEach(cb => {
+        cb.checked = masterCb.checked;
+    });
+    window.updateSelectedAdminsState(tipo);
+};
+
+/**
+ * Atualiza a visibilidade do botão de exclusão em lote com base nas seleções.
+ */
+window.updateSelectedAdminsState = function (tipo) {
+    const selected = document.querySelectorAll(`.${tipo}-select:checked`);
+    const btn = document.getElementById(`btn-delete-selected-${tipo}`);
+    if (!btn) return;
+
+    if (selected.length > 0) {
+        btn.style.display = 'inline-flex';
+        btn.innerHTML = `<i class="fas fa-trash-alt"></i> Excluir Selecionados (${selected.length})`;
+    } else {
+        btn.style.display = 'none';
+    }
+};
+
+/**
+ * Executa a exclusão em lote dos usuários (admin ou professor) selecionados.
+ */
+window.deleteSelectedAdmins = async function (tipo) {
+    const selected = document.querySelectorAll(`.${tipo}-select:checked`);
+    if (selected.length === 0) return;
+
+    const ids = Array.from(selected).map(cb => cb.value);
+    const count = ids.length;
+
+    const label = tipo === 'admin' ? 'administradores' : 'professores';
+    const title = tipo === 'admin' ? 'Excluir Admins em Lote' : 'Excluir Professores em Lote';
+    const msg = `Deseja excluir permanentemente os ${count} ${label} selecionado(s)?\nEsta ação não pode ser desfeita.`;
+
+    const confirmed = await window.openConfirmModal(title, msg, "Sim, Excluir");
+    if (!confirmed) return;
+
+    // Mostra um toast informativo do início do processo
+    showToast(`Excluindo ${count} ${label} em lote...`, 'info');
+
+    let successes = 0;
+    let failures = 0;
+
+    try {
+        // Executa as exclusões sequencialmente para evitar conflitos de sessão/concorrência
+        for (const id of ids) {
+            try {
+                const res = await fetch(`${window.API_URL}?action=delete_admin&id=${id}&tipo=${tipo}`)
+                    .then(r => r.json());
+                if (res.success) {
+                    successes++;
+                } else {
+                    failures++;
+                }
+            } catch (err) {
+                failures++;
+            }
+        }
+
+        if (successes > 0) {
+            showToast(`${successes} ${label} excluído(s) com sucesso.`, 'success');
+        }
+        if (failures > 0) {
+            showToast(`${failures} ${label} falharam ao excluir.`, 'error');
+        }
+
+        loadAdmins(tipo); // Recarrega a tabela correspondente
+    } catch (err) {
+        showToast("Erro de comunicação ao processar exclusão em lote.", 'error');
+    }
+};

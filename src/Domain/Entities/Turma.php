@@ -12,7 +12,9 @@ class Turma
         public ?int $id = null,
         public string $nome = "",
         public ?string $createdAt = null,
-        public int $ativo = 1
+        public int $ativo = 1,
+        public ?int $criadorId = null,
+        public ?string $criadorTipo = null
     ) {}
 
     /**
@@ -21,10 +23,12 @@ class Turma
     public function toArray(): array
     {
         return [
-            'id'         => $this->id,
-            'nome'       => $this->nome,
-            'created_at' => $this->createdAt,
-            'ativo'      => $this->ativo
+            'id'           => $this->id,
+            'nome'         => $this->nome,
+            'created_at'   => $this->createdAt,
+            'ativo'        => $this->ativo,
+            'criador_id'   => $this->criadorId,
+            'criador_tipo' => $this->criadorTipo
         ];
     }
 }

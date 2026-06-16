@@ -2,9 +2,10 @@
  * Exportação: Excel, PDF e CSV
  */
 
-function exportExcel(period = 'today', date = null) {
+function exportExcel(period = 'today', date = null, classFilter = null) {
     let url = `api.php?action=export_excel&period=${period}`;
     if (date) url += `&date=${date}`;
+    if (classFilter) url += `&turma=${encodeURIComponent(classFilter)}`;
     window.location.href = url;
 }
 
@@ -39,13 +40,14 @@ window.runAdvancedExport = function() {
     const periodOpt = document.querySelector('input[name="export-period"]:checked');
     const period = periodOpt ? periodOpt.value : 'today';
     const date = document.getElementById('export-date').value;
+    const classFilter = document.getElementById('export-class')?.value || '';
 
     if (!date) {
         showToast("Selecione uma data para o filtro.", "error");
         return;
     }
 
-    exportExcel(period, date);
+    exportExcel(period, date, classFilter);
     showToast("Gerando sua planilha...", "success");
     closeExportModal();
 }

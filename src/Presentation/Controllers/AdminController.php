@@ -40,11 +40,15 @@ class AdminController
     /**
      * Cadastra um novo administrador ou professor.
      */
-    public function create(array $data): array
+    public function create(array $data, string $currentAdminTipo = 'professor'): array
     {
         $usuario = trim($data['usuario'] ?? '');
         $senha   = trim($data['senha']   ?? '');
         $tipo    = in_array($data['tipo'] ?? '', ['admin', 'professor']) ? $data['tipo'] : 'professor';
+
+        if ($currentAdminTipo !== 'admin') {
+            return ['success' => false, 'message' => 'Apenas administradores podem cadastrar novos administradores ou professores.'];
+        }
 
         if (empty($usuario) || empty($senha)) {
             return ['success' => false, 'message' => 'Usuário e senha são obrigatórios.'];
@@ -85,33 +89,34 @@ class AdminController
      * Admins podem resetar a senha de professores e de outros admins.
      * Professores só podem resetar a senha de outros professores e dele mesmo.
      */
-    public function resetPassword(int $id, int $currentAdminId = 0, string $currentAdminTipo = 'professor'): array
+    public function resetPassword(int $id, int $currentAdminId = 0, string $currentAdminTipo = 'professor', string $targetTipo = ''): array
     {
         if ($id <= 0) return ['success' => false, 'message' => 'ID inválido.'];
 
-        // Determinar o tipo do usuário alvo
-        $targetTipo = null;
-        
-        // Verifica se o ID existe na tabela 'admins'
-        $stmt = $this->db->prepare("SELECT id FROM admins WHERE id = ? LIMIT 1");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        if ($res && $res->num_rows > 0) {
-            $targetTipo = 'admin';
-        }
-        $stmt->close();
+        $targetTipo = in_array($targetTipo, ['admin', 'professor']) ? $targetTipo : null;
 
-        // Se não encontrou em admins, verifica em professores
         if (!$targetTipo) {
-            $stmt = $this->db->prepare("SELECT id FROM professores WHERE id = ? LIMIT 1");
+            // Determinar o tipo do usuário alvo (fallback automático)
+            $stmt = $this->db->prepare("SELECT id FROM admins WHERE id = ? LIMIT 1");
             $stmt->bind_param("i", $id);
             $stmt->execute();
             $res = $stmt->get_result();
             if ($res && $res->num_rows > 0) {
-                $targetTipo = 'professor';
+                $targetTipo = 'admin';
             }
             $stmt->close();
+
+            // Se não encontrou em admins, verifica em professores
+            if (!$targetTipo) {
+                $stmt = $this->db->prepare("SELECT id FROM professores WHERE id = ? LIMIT 1");
+                $stmt->bind_param("i", $id);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($res && $res->num_rows > 0) {
+                    $targetTipo = 'professor';
+                }
+                $stmt->close();
+            }
         }
 
         if (!$targetTipo) {
@@ -155,7 +160,7 @@ class AdminController
      * Impede que professores excluam outros usuários (seja professor ou admin).
      * Impede auto-exclusão para admins.
      */
-    public function delete(int $id, int $currentAdminId = 0, string $currentAdminTipo = 'professor'): array
+    public function delete(int $id, int $currentAdminId = 0, string $currentAdminTipo = 'professor', string $targetTipo = ''): array
     {
         if ($id <= 0) return ['success' => false, 'message' => 'ID inválido.'];
 
@@ -164,27 +169,29 @@ class AdminController
             return ['success' => false, 'message' => 'Professores não possuem permissão para excluir outros usuários.'];
         }
 
-        // Determinar em qual tabela o usuário está cadastrado
-        $targetTipo = null;
-        
-        $stmt = $this->db->prepare("SELECT id FROM admins WHERE id = ? LIMIT 1");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        if ($res && $res->num_rows > 0) {
-            $targetTipo = 'admin';
-        }
-        $stmt->close();
+        $targetTipo = in_array($targetTipo, ['admin', 'professor']) ? $targetTipo : null;
 
         if (!$targetTipo) {
-            $stmt = $this->db->prepare("SELECT id FROM professores WHERE id = ? LIMIT 1");
+            // Determinar em qual tabela o usuário está cadastrado (fallback automático)
+            $stmt = $this->db->prepare("SELECT id FROM admins WHERE id = ? LIMIT 1");
             $stmt->bind_param("i", $id);
             $stmt->execute();
             $res = $stmt->get_result();
             if ($res && $res->num_rows > 0) {
-                $targetTipo = 'professor';
+                $targetTipo = 'admin';
             }
             $stmt->close();
+
+            if (!$targetTipo) {
+                $stmt = $this->db->prepare("SELECT id FROM professores WHERE id = ? LIMIT 1");
+                $stmt->bind_param("i", $id);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($res && $res->num_rows > 0) {
+                    $targetTipo = 'professor';
+                }
+                $stmt->close();
+            }
         }
 
         if (!$targetTipo) {
@@ -239,5 +246,168 @@ class AdminController
         }
 
         return ['success' => true, 'message' => 'Senha alterada com sucesso!'];
+    }
+
+    /**
+     * Importa professores a partir de um arquivo Excel/CSV/XLS.
+     */
+    public function importFromExcel(string $filePath): array
+    {
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+            $worksheet   = $spreadsheet->getActiveSheet();
+            $rows        = $worksheet->toArray();
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'message' => 'Erro ao processar a planilha: ' . $e->getMessage()
+            ];
+        }
+
+        if (empty($rows)) {
+            return ['success' => false, 'message' => 'A planilha está vazia ou não pôde ser lida.'];
+        }
+
+        // --- Detecção Dinâmica da Linha de Cabeçalho Real ---
+        $headerRowIndex = -1;
+        $maxHeaderScore = 0;
+        
+        $keywords = ['usuario', 'usuario_nome', 'user', 'username', 'nome', 'name', 'professor', 'teacher', 'docente'];
+        
+        $numRowsToTest = min(10, count($rows));
+        for ($r = 0; $r < $numRowsToTest; $r++) {
+            if (!isset($rows[$r]) || !is_array($rows[$r])) continue;
+            
+            $score = 0;
+            foreach ($rows[$r] as $val) {
+                if ($val === null) continue;
+                $clean = strtolower(trim((string)$val));
+                if ($clean === '') continue;
+                
+                foreach ($keywords as $kw) {
+                    if (str_contains($clean, $kw)) {
+                        $score++;
+                    }
+                }
+            }
+            
+            if ($score > $maxHeaderScore) {
+                $maxHeaderScore = $score;
+                $headerRowIndex = $r;
+            }
+        }
+        
+        $userColIndex = -1;
+        $startIndex = 0;
+        
+        if ($headerRowIndex !== -1 && $maxHeaderScore >= 1) {
+            $header = $rows[$headerRowIndex];
+            $startIndex = $headerRowIndex + 1;
+            
+            foreach ($header as $idx => $colName) {
+                if ($colName === null) continue;
+                $clean = strtolower(trim((string)$colName));
+                foreach ($keywords as $kw) {
+                    if ($clean === $kw || str_contains($clean, $kw)) {
+                        $userColIndex = $idx;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        if ($userColIndex === -1) {
+            $userColIndex = 0;
+        }
+
+        // Carregar professores existentes para evitar duplicidade
+        $existingUsers = [];
+        $resultQ = $this->db->query("SELECT LOWER(usuario) AS usuario FROM professores WHERE ativo = 1");
+        if ($resultQ) {
+            while ($row = $resultQ->fetch_assoc()) {
+                $existingUsers[] = $row['usuario'];
+            }
+        }
+
+        $imported = 0;
+        $errors = 0;
+        $duplicates = 0;
+
+        $senhaPadrao = 'senaisp';
+        $senhaHash = password_hash($senhaPadrao, PASSWORD_BCRYPT);
+
+        for ($i = $startIndex; $i < count($rows); $i++) {
+            $row = $rows[$i];
+            if (!isset($row[$userColIndex])) continue;
+            $usuario = trim($row[$userColIndex]);
+            if (empty($usuario)) continue;
+
+            // Importar apenas o primeiro nome
+            $parts = preg_split('/\s+/', $usuario);
+            $primeiroNome = trim($parts[0] ?? '');
+            if (empty($primeiroNome)) continue;
+
+            $usuarioClean = $this->sanitizeUsername($primeiroNome);
+            if (empty($usuarioClean)) continue;
+
+            $usuarioLow = strtolower($usuarioClean);
+            if (in_array($usuarioLow, $existingUsers)) {
+                $duplicates++;
+                continue;
+            }
+
+            $stmtIns = $this->db->prepare("INSERT INTO professores (usuario, senha_hash, senha_resetada) VALUES (?, ?, 2)");
+            if ($stmtIns) {
+                $stmtIns->bind_param("ss", $usuarioClean, $senhaHash);
+                if ($stmtIns->execute()) {
+                    $imported++;
+                    $existingUsers[] = $usuarioLow;
+                } else {
+                    $errors++;
+                }
+                $stmtIns->close();
+            } else {
+                $errors++;
+            }
+        }
+
+        if ($imported === 0 && $duplicates > 0) {
+            return [
+                'success' => false,
+                'message' => 'Todos os professores desta planilha já estão cadastrados no sistema.',
+                'imported' => 0,
+                'errors' => $errors,
+                'duplicates' => $duplicates
+            ];
+        }
+
+        $msg = "Importação de professores concluída com sucesso!";
+        if ($duplicates > 0) {
+            $msg = "Importação concluída! {$imported} novos professores cadastrados ({$duplicates} já existiam).";
+        }
+
+        return [
+            'success' => true,
+            'message' => $msg,
+            'imported' => $imported,
+            'errors' => $errors,
+            'duplicates' => $duplicates
+        ];
+    }
+
+    private function sanitizeUsername(string $str): string
+    {
+        $str = mb_strtolower($str, 'UTF-8');
+        
+        $str = preg_replace(
+            ['/[áàâãä]/u', '/[éèêë]/u', '/[íìîï]/u', '/[óòôõö]/u', '/[úùûü]/u', '/ç/u'],
+            ['a', 'e', 'i', 'o', 'u', 'c'],
+            $str
+        );
+
+        $str = str_replace(' ', '.', $str);
+        $str = preg_replace('/[^a-z0-9._\-@]/', '', $str);
+        $str = preg_replace('/\.+/', '.', $str);
+        return trim($str, '.');
     }
 }

@@ -100,4 +100,74 @@ class SessionAuth
         $_SESSION = [];
         session_destroy();
     }
+
+    /**
+     * Verifica se um professor tem permissão para gerenciar uma determinada turma.
+     * Administradores sempre têm permissão total.
+     * Professores têm permissão se forem os criadores da turma ou se estiverem na tabela turma_professor.
+     */
+    public static function canManageClass(\mysqli $db, int $userId, string $userTipo, int $turmaId): bool
+    {
+        if ($userTipo === 'admin') {
+            return true;
+        }
+
+        // 1. Verifica se o professor é o criador original
+        $stmt = $db->prepare("SELECT criador_id, criador_tipo FROM turmas WHERE id = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param("i", $turmaId);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $row = $res->fetch_assoc()) {
+                if ($row['criador_tipo'] === 'professor' && (int)$row['criador_id'] === $userId) {
+                    $stmt->close();
+                    return true;
+                }
+            }
+            $stmt->close();
+        }
+
+        // 2. Verifica se há permissão delegada na tabela turma_professor
+        $stmtPerm = $db->prepare("SELECT 1 FROM turma_professor WHERE turma_id = ? AND professor_id = ? LIMIT 1");
+        if ($stmtPerm) {
+            $stmtPerm->bind_param("ii", $turmaId, $userId);
+            $stmtPerm->execute();
+            $resPerm = $stmtPerm->get_result();
+            $hasPerm = ($resPerm && $resPerm->num_rows > 0);
+            $stmtPerm->close();
+            return $hasPerm;
+        }
+
+        return false;
+    }
+
+    /**
+     * Verifica se um professor tem permissão para gerenciar uma turma pelo nome da turma.
+     */
+    public static function canManageClassByName(\mysqli $db, int $userId, string $userTipo, string $turmaNome): bool
+    {
+        if ($userTipo === 'admin') {
+            return true;
+        }
+
+        if (in_array($turmaNome, ['Sem Turma', 'N/A', 'N/A '])) {
+            return false;
+        }
+
+        // Busca o ID da turma pelo nome
+        $stmtId = $db->prepare("SELECT id FROM turmas WHERE nome = ? LIMIT 1");
+        if ($stmtId) {
+            $stmtId->bind_param("s", $turmaNome);
+            $stmtId->execute();
+            $resId = $stmtId->get_result();
+            if ($resId && $rowId = $resId->fetch_assoc()) {
+                $turmaId = (int)$rowId['id'];
+                $stmtId->close();
+                return self::canManageClass($db, $userId, $userTipo, $turmaId);
+            }
+            $stmtId->close();
+        }
+
+        return false;
+    }
 }

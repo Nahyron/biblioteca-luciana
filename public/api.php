@@ -42,7 +42,7 @@ try {
     $exportService = new ExportService($db);
     // 4. Instancia Controllers (Presentation) - Injetando dependências
     $studentController = new StudentController($studentService);
-    $classController = new TurmaController($turmaService); // Mantido como $classController para consistência com o original
+    $classController = new TurmaController($turmaService, $db); // Mantido como $classController para consistência com o original
     $exportController = new ExportController($exportService);
     $adminController  = new AdminController($db);
 
@@ -75,9 +75,19 @@ try {
             break;
 
         case 'register_student':
-
-            // Obtém dados JSON do corpo da requisição POST
             $data = json_decode(file_get_contents('php://input'), true);
+            $className = (string)($data['turma'] ?? '');
+            $currentId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            
+            if ($currentTipo === 'professor') {
+                if (!empty($className) && !in_array($className, ['Sem Turma', 'N/A', 'N/A '])) {
+                    if (!\App\Infrastructure\Auth\SessionAuth::canManageClassByName($db, $currentId, $currentTipo, $className)) {
+                        echo json_encode(['success' => false, 'message' => 'Você não tem permissão para cadastrar alunos nesta turma.']);
+                        break;
+                    }
+                }
+            }
             echo json_encode($studentController->register($data));
             break;
 
@@ -87,6 +97,27 @@ try {
             $operadorTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
             $operadorNome = 'Sistema';
             
+            if ($operadorTipo === 'professor') {
+                $stmtSt = $db->prepare("SELECT turma FROM usuarios WHERE id = ? LIMIT 1");
+                $studentClassName = '';
+                if ($stmtSt) {
+                    $stmtSt->bind_param("i", $id);
+                    $stmtSt->execute();
+                    $resSt = $stmtSt->get_result();
+                    if ($resSt && $rowSt = $resSt->fetch_assoc()) {
+                        $studentClassName = $rowSt['turma'];
+                    }
+                    $stmtSt->close();
+                }
+                
+                if (!empty($studentClassName) && !in_array($studentClassName, ['Sem Turma', 'N/A', 'N/A '])) {
+                    if (!\App\Infrastructure\Auth\SessionAuth::canManageClassByName($db, $operadorId, $operadorTipo, $studentClassName)) {
+                        echo json_encode(['success' => false, 'message' => 'Você não tem permissão para desativar alunos desta turma.']);
+                        break;
+                    }
+                }
+            }
+
             if ($operadorId > 0) {
                 $table = $operadorTipo === 'admin' ? 'admins' : 'professores';
                 $stmtOp = $db->prepare("SELECT usuario FROM {$table} WHERE id = ? LIMIT 1");
@@ -113,6 +144,27 @@ try {
             $operadorTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
             $operadorNome = 'Sistema';
             
+            if ($operadorTipo === 'professor') {
+                $stmtSt = $db->prepare("SELECT turma FROM usuarios WHERE id = ? LIMIT 1");
+                $studentClassName = '';
+                if ($stmtSt) {
+                    $stmtSt->bind_param("i", $id);
+                    $stmtSt->execute();
+                    $resSt = $stmtSt->get_result();
+                    if ($resSt && $rowSt = $resSt->fetch_assoc()) {
+                        $studentClassName = $rowSt['turma'];
+                    }
+                    $stmtSt->close();
+                }
+                
+                if (!empty($studentClassName) && !in_array($studentClassName, ['Sem Turma', 'N/A', 'N/A '])) {
+                    if (!\App\Infrastructure\Auth\SessionAuth::canManageClassByName($db, $operadorId, $operadorTipo, $studentClassName)) {
+                        echo json_encode(['success' => false, 'message' => 'Você não tem permissão para reativar alunos desta turma.']);
+                        break;
+                    }
+                }
+            }
+
             if ($operadorId > 0) {
                 $table = $operadorTipo === 'admin' ? 'admins' : 'professores';
                 $stmtOp = $db->prepare("SELECT usuario FROM {$table} WHERE id = ? LIMIT 1");
@@ -150,16 +202,103 @@ try {
 
         // --- Gestão de Turmas ---
         case 'list_classes':
-            echo json_encode($classController->listAll());
+            $currentId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            echo json_encode($classController->listAll($currentId, $currentTipo));
             break;
 
         case 'list_inactive_classes':
-            echo json_encode($classController->listInactive());
+            $currentId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            echo json_encode($classController->listInactive($currentId, $currentTipo));
+            break;
+
+        case 'list_class_permissions':
+            if (\App\Infrastructure\Auth\SessionAuth::getAdminTipo() !== 'admin') {
+                echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
+                break;
+            }
+            $turmaId = (int)($_GET['turma_id'] ?? 0);
+            if ($turmaId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Turma inválida.']);
+                break;
+            }
+            
+            $professores = [];
+            $resProfs = $db->query("SELECT id, usuario FROM professores WHERE ativo = 1 ORDER BY usuario ASC");
+            if ($resProfs) {
+                while ($rowProf = $resProfs->fetch_assoc()) {
+                    $profId = (int)$rowProf['id'];
+                    
+                    $stmtCheck = $db->prepare("SELECT 1 FROM turma_professor WHERE turma_id = ? AND professor_id = ? LIMIT 1");
+                    $autorizado = false;
+                    if ($stmtCheck) {
+                        $stmtCheck->bind_param("ii", $turmaId, $profId);
+                        $stmtCheck->execute();
+                        $resCheck = $stmtCheck->get_result();
+                        $autorizado = ($resCheck && $resCheck->num_rows > 0);
+                        $stmtCheck->close();
+                    }
+                    
+                    $professores[] = [
+                        'id' => $profId,
+                        'usuario' => $rowProf['usuario'],
+                        'autorizado' => $autorizado
+                    ];
+                }
+            }
+            echo json_encode($professores);
+            break;
+
+        case 'save_class_permissions':
+            if (\App\Infrastructure\Auth\SessionAuth::getAdminTipo() !== 'admin') {
+                echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
+                break;
+            }
+            
+            $data = json_decode(file_get_contents('php://input'), true);
+            $turmaId = (int)($data['turma_id'] ?? 0);
+            $professoresIds = $data['professores'] ?? [];
+            
+            if ($turmaId <= 0 || !is_array($professoresIds)) {
+                echo json_encode(['success' => false, 'message' => 'Dados inválidos.']);
+                break;
+            }
+            
+            $db->begin_transaction();
+            try {
+                $stmtDel = $db->prepare("DELETE FROM turma_professor WHERE turma_id = ?");
+                if ($stmtDel) {
+                    $stmtDel->bind_param("i", $turmaId);
+                    $stmtDel->execute();
+                    $stmtDel->close();
+                }
+                
+                $stmtIns = $db->prepare("INSERT INTO turma_professor (turma_id, professor_id) VALUES (?, ?)");
+                if ($stmtIns) {
+                    foreach ($professoresIds as $profId) {
+                        $profId = (int)$profId;
+                        if ($profId > 0) {
+                            $stmtIns->bind_param("ii", $turmaId, $profId);
+                            $stmtIns->execute();
+                        }
+                    }
+                    $stmtIns->close();
+                }
+                
+                $db->commit();
+                echo json_encode(['success' => true, 'message' => 'Permissões atualizadas com sucesso!']);
+            } catch (\Throwable $e) {
+                $db->rollback();
+                echo json_encode(['success' => false, 'message' => 'Erro ao salvar permissões: ' . $e->getMessage()]);
+            }
             break;
 
         case 'create_class':
             $data = json_decode(file_get_contents('php://input'), true);
-            echo json_encode($classController->create($data));
+            $currentId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            echo json_encode($classController->create($data, $currentId, $currentTipo));
             break;
 
         case 'delete_class':
@@ -182,7 +321,7 @@ try {
                     $stmtOp->close();
                 }
             }
-            echo json_encode($classController->deactivate($id, $operadorNome));
+            echo json_encode($classController->deactivate($id, $operadorNome, $operadorId, $operadorTipo));
             break;
 
         case 'activate_class':
@@ -204,20 +343,54 @@ try {
                     $stmtOp->close();
                 }
             }
-            echo json_encode($classController->activate($id, $operadorNome));
+            echo json_encode($classController->activate($id, $operadorNome, $operadorId, $operadorTipo));
             break;
 
         case 'update_class':
             $data = json_decode(file_get_contents('php://input'), true);
             $classId = (int)($data['id'] ?? 0);
             $newName = (string)($data['nome'] ?? '');
-            echo json_encode($classController->updateName($classId, $newName));
+            $operadorId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $operadorTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            echo json_encode($classController->updateName($classId, $newName, $operadorId, $operadorTipo));
             break;
 
         case 'update_student_class':
             $data = json_decode(file_get_contents('php://input'), true);
             $studentId = (int)($data['id'] ?? 0);
             $className = (string)($data['className'] ?? '');
+            
+            $currentId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            
+            if ($currentTipo === 'professor') {
+                $stmtSt = $db->prepare("SELECT turma FROM usuarios WHERE id = ? LIMIT 1");
+                $currentClassName = '';
+                if ($stmtSt) {
+                    $stmtSt->bind_param("i", $studentId);
+                    $stmtSt->execute();
+                    $resSt = $stmtSt->get_result();
+                    if ($resSt && $rowSt = $resSt->fetch_assoc()) {
+                        $currentClassName = $rowSt['turma'];
+                    }
+                    $stmtSt->close();
+                }
+                
+                if (!empty($className) && !in_array($className, ['Sem Turma', 'N/A', 'N/A '])) {
+                    if (!\App\Infrastructure\Auth\SessionAuth::canManageClassByName($db, $currentId, $currentTipo, $className)) {
+                        echo json_encode(['success' => false, 'message' => 'Você não tem permissão para gerenciar a turma de destino (' . $className . ').']);
+                        break;
+                    }
+                }
+                
+                if (!empty($currentClassName) && !in_array($currentClassName, ['Sem Turma', 'N/A', 'N/A '])) {
+                    if (!\App\Infrastructure\Auth\SessionAuth::canManageClassByName($db, $currentId, $currentTipo, $currentClassName)) {
+                        echo json_encode(['success' => false, 'message' => 'Você não tem permissão para remover alunos da turma de origem (' . $currentClassName . ').']);
+                        break;
+                    }
+                }
+            }
+            
             echo json_encode($studentController->updateClass($studentId, $className));
             break;
 
@@ -236,6 +409,31 @@ try {
             $data = json_decode(file_get_contents('php://input'), true);
             $studentId = (int)($data['id'] ?? 0);
             $newName = (string)($data['nome'] ?? '');
+            
+            $currentId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            
+            if ($currentTipo === 'professor') {
+                $stmtSt = $db->prepare("SELECT turma FROM usuarios WHERE id = ? LIMIT 1");
+                $studentClassName = '';
+                if ($stmtSt) {
+                    $stmtSt->bind_param("i", $studentId);
+                    $stmtSt->execute();
+                    $resSt = $stmtSt->get_result();
+                    if ($resSt && $rowSt = $resSt->fetch_assoc()) {
+                        $studentClassName = $rowSt['turma'];
+                    }
+                    $stmtSt->close();
+                }
+                
+                if (!empty($studentClassName) && !in_array($studentClassName, ['Sem Turma', 'N/A', 'N/A '])) {
+                    if (!\App\Infrastructure\Auth\SessionAuth::canManageClassByName($db, $currentId, $currentTipo, $studentClassName)) {
+                        echo json_encode(['success' => false, 'message' => 'Você não tem permissão para editar alunos desta turma.']);
+                        break;
+                    }
+                }
+            }
+            
             echo json_encode($studentController->updateName($studentId, $newName));
             break;
 
@@ -259,7 +457,8 @@ try {
             $date = $_GET['date'] ?? null;
             $startDate = $_GET['start_date'] ?? null;
             $endDate = $_GET['end_date'] ?? null;
-            $exportController->exportExcel($period, $date, $startDate, $endDate);
+            $turmaName = $_GET['turma'] ?? null;
+            $exportController->exportExcel($period, $date, $startDate, $endDate, $turmaName);
             break;
 
         case 'export_students':
@@ -273,6 +472,31 @@ try {
         case 'update_student_biometrics':
             $data = json_decode(file_get_contents('php://input'), true);
             $studentId = (int)($data['id'] ?? 0);
+            
+            $currentId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            
+            if ($currentTipo === 'professor') {
+                $stmtSt = $db->prepare("SELECT turma FROM usuarios WHERE id = ? LIMIT 1");
+                $studentClassName = '';
+                if ($stmtSt) {
+                    $stmtSt->bind_param("i", $studentId);
+                    $stmtSt->execute();
+                    $resSt = $stmtSt->get_result();
+                    if ($resSt && $rowSt = $resSt->fetch_assoc()) {
+                        $studentClassName = $rowSt['turma'];
+                    }
+                    $stmtSt->close();
+                }
+                
+                if (!empty($studentClassName) && !in_array($studentClassName, ['Sem Turma', 'N/A', 'N/A '])) {
+                    if (!\App\Infrastructure\Auth\SessionAuth::canManageClassByName($db, $currentId, $currentTipo, $studentClassName)) {
+                        echo json_encode(['success' => false, 'message' => 'Você não tem permissão para alterar a biometria de alunos desta turma.']);
+                        break;
+                    }
+                }
+            }
+            
             echo json_encode($studentController->updateBiometrics($studentId, $data));
             break;
 
@@ -286,6 +510,17 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Arquivo não enviado ou com erro no upload.']);
                 break;
             }
+            
+            $currentId = \App\Infrastructure\Auth\SessionAuth::getAdminId();
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            
+            if ($currentTipo === 'professor') {
+                if (!\App\Infrastructure\Auth\SessionAuth::canManageClassByName($db, $currentId, $currentTipo, $className)) {
+                    echo json_encode(['success' => false, 'message' => 'Você não tem permissão para importar alunos para esta turma.']);
+                    break;
+                }
+            }
+            
             echo json_encode($studentController->importFromExcel($_FILES['excel_file']['tmp_name'], $className));
             break;
 
@@ -298,21 +533,37 @@ try {
 
         case 'create_admin':
             $data = json_decode(file_get_contents('php://input'), true);
-            echo json_encode($adminController->create($data ?? []));
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            echo json_encode($adminController->create($data ?? [], $currentTipo));
+            break;
+
+        case 'import_teachers_excel':
+            $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
+            if ($currentTipo !== 'admin') {
+                echo json_encode(['success' => false, 'message' => 'Apenas administradores podem importar professores.']);
+                break;
+            }
+            if (!isset($_FILES['excel_file']) || $_FILES['excel_file']['error'] !== UPLOAD_ERR_OK) {
+                echo json_encode(['success' => false, 'message' => 'Arquivo não enviado ou com erro no upload.']);
+                break;
+            }
+            echo json_encode($adminController->importFromExcel($_FILES['excel_file']['tmp_name']));
             break;
 
         case 'reset_admin_password':
-            $id = (int)($_GET['id'] ?? 0);
+            $id         = (int)($_GET['id'] ?? 0);
+            $targetTipo = $_GET['tipo'] ?? '';
             $currentId  = \App\Infrastructure\Auth\SessionAuth::getAdminId();
             $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
-            echo json_encode($adminController->resetPassword($id, $currentId, $currentTipo));
+            echo json_encode($adminController->resetPassword($id, $currentId, $currentTipo, $targetTipo));
             break;
 
         case 'delete_admin':
             $id         = (int)($_GET['id'] ?? 0);
+            $targetTipo = $_GET['tipo'] ?? '';
             $currentId  = \App\Infrastructure\Auth\SessionAuth::getAdminId();
             $currentTipo = \App\Infrastructure\Auth\SessionAuth::getAdminTipo();
-            echo json_encode($adminController->delete($id, $currentId, $currentTipo));
+            echo json_encode($adminController->delete($id, $currentId, $currentTipo, $targetTipo));
             break;
 
         case 'change_own_password':

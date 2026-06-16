@@ -28,6 +28,30 @@
             </div>
 
             <div class="form-group" style="margin-top: 1.5rem;">
+                <label for="export-class">Filtrar por Turma</label>
+                <select id="export-class" class="form-control">
+                    <option value="">Todas as Turmas</option>
+                    <?php
+                    use App\Config\Database;
+                    try {
+                        $exportDb = (new Database())->getConnection();
+                        if ($exportDb) {
+                            $resExport = $exportDb->query("SELECT id, nome FROM turmas WHERE ativo = 1 ORDER BY nome ASC");
+                            if ($resExport) {
+                                while ($row = $resExport->fetch_assoc()) {
+                                    if (!in_array($row['nome'], ['Sem Turma', 'N/A', 'N/A '])) {
+                                        echo '<option value="' . htmlspecialchars($row['nome']) . '">' . htmlspecialchars($row['nome']) . '</option>';
+                                    }
+                                }
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                    ?>
+                </select>
+                <small style="color: #999; display: block; margin-top: 5px;">Selecione uma turma específica ou deixe "Todas as Turmas" para exportar tudo.</small>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.5rem;">
                 <label for="export-date">Data de Referência</label>
                 <input type="date" id="export-date" required class="form-control"
                     value="<?php echo date('Y-m-d'); ?>">

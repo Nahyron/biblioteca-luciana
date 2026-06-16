@@ -26,6 +26,8 @@ CREATE TABLE `turmas` (
   `nome` VARCHAR(255) NOT NULL,
   `ativo` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+  `criador_id` INT NULL,
+  `criador_tipo` VARCHAR(50) NULL,
   PRIMARY KEY (`id`),
   INDEX `idx_turma_nome` (`nome` ASC)
 )
@@ -149,6 +151,29 @@ CREATE TABLE IF NOT EXISTS `professores` (
   `criado_at`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
   PRIMARY KEY (`id`),
   UNIQUE INDEX `usuario_UNIQUE` (`usuario` ASC)
+)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Table `turma_professor`
+-- Tabela pivô para associar quais professores podem gerenciar cada turma.
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `turma_professor` (
+  `turma_id` INT NOT NULL,
+  `professor_id` INT NOT NULL,
+  PRIMARY KEY (`turma_id`, `professor_id`),
+  CONSTRAINT `fk_turma_professor_turma`
+    FOREIGN KEY (`turma_id`)
+    REFERENCES `turmas` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_turma_professor_professor`
+    FOREIGN KEY (`professor_id`)
+    REFERENCES `professores` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
 )
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4

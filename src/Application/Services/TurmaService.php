@@ -24,7 +24,7 @@ class TurmaService
         return array_map(fn($t) => $t->toArray(), $turmas);
     }
 
-    public function create(string $nome): bool|string
+    public function create(string $nome, ?int $criadorId = null, ?string $criadorTipo = null): bool|string
     {
         $nome = trim($nome);
         if (empty($nome)) {
@@ -37,7 +37,7 @@ class TurmaService
         }
 
         $nomeClean = preg_replace('/[^\p{L}\p{N}\s\-ºª]/u', '', $nome);
-        return $this->repository->create($nomeClean);
+        return $this->repository->create($nomeClean, $criadorId, $criadorTipo);
     }
 
     /**
@@ -73,5 +73,11 @@ class TurmaService
 
         $newNameClean = preg_replace('/[^\p{L}\p{N}\s\-ºª]/u', '', $newName);
         return $this->repository->updateName($id, $newNameClean);
+    }
+
+    public function getById(int $id): ?array
+    {
+        $turma = $this->repository->getById($id);
+        return $turma ? $turma->toArray() : null;
     }
 }

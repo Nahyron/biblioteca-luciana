@@ -14,6 +14,7 @@
         window.BASE_URL = "<?php echo BASE_URL; ?>";
         window.API_URL = "<?php echo PUBLIC_URL; ?>/api.php";
         window.CURRENT_USER_TIPO = "<?php echo \App\Infrastructure\Auth\SessionAuth::isAuthenticated() ? \App\Infrastructure\Auth\SessionAuth::getAdminTipo() : ''; ?>";
+        window.CURRENT_USER_ID = <?php echo \App\Infrastructure\Auth\SessionAuth::isAuthenticated() ? \App\Infrastructure\Auth\SessionAuth::getAdminId() : 0; ?>;
     </script>
 
     <!-- Base URL para importação correta de Assets em qualquer ambiente/subpasta -->

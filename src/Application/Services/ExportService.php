@@ -13,11 +13,12 @@ class ExportService
 {
     public function __construct(private mysqli $db) {}
 
-    public function generateAccessXls(?string $period = 'all', ?string $targetDate = null, ?string $startDate = null, ?string $endDate = null): void
+    public function generateAccessXls(?string $period = 'all', ?string $targetDate = null, ?string $startDate = null, ?string $endDate = null, ?string $turmaName = null): void
     {
         $whereClause = "";
         $params = [];
         $types = "";
+        $refDate = $targetDate && !empty($targetDate) ? $targetDate : date('Y-m-d');
 
         if ($startDate && $endDate) {
             $whereClause = "WHERE DATE(al.horario_entrada) BETWEEN ? AND ?";
@@ -25,21 +26,28 @@ class ExportService
             $params[] = $endDate;
             $types .= "ss";
         } elseif ($period === 'today') {
-            $refDate = $targetDate && !empty($targetDate) ? $targetDate : date('Y-m-d');
             $whereClause = "WHERE DATE(al.horario_entrada) = ?";
             $params[] = $refDate;
             $types .= "s";
         } elseif ($period === 'week') {
-            $refDate = $targetDate && !empty($targetDate) ? $targetDate : date('Y-m-d');
             $whereClause = "WHERE YEARWEEK(al.horario_entrada, 1) = YEARWEEK(?, 1)";
             $params[] = $refDate;
             $types .= "s";
         } elseif ($period === 'month') {
-            $refDate = $targetDate && !empty($targetDate) ? $targetDate : date('Y-m-d');
             $whereClause = "WHERE MONTH(al.horario_entrada) = MONTH(?) AND YEAR(al.horario_entrada) = YEAR(?)";
             $params[] = $refDate;
             $params[] = $refDate;
             $types .= "ss";
+        }
+
+        if ($turmaName && !empty(trim($turmaName))) {
+            if (empty($whereClause)) {
+                $whereClause = "WHERE u.turma = ?";
+            } else {
+                $whereClause .= " AND u.turma = ?";
+            }
+            $params[] = trim($turmaName);
+            $types .= "s";
         }
 
         $sql = "SELECT al.id as log_id, u.nome, u.turma, al.horario_entrada, al.acao, al.operador 
@@ -77,6 +85,9 @@ class ExportService
         $periodLabel = $periodLabels[$period] ?? 'Personalizado';
         if ($startDate && $endDate) {
             $periodLabel = "Período: " . date('d/m/Y', strtotime($startDate)) . " até " . date('d/m/Y', strtotime($endDate));
+        }
+        if ($turmaName && !empty(trim($turmaName))) {
+            $periodLabel .= " | Turma: " . htmlspecialchars($turmaName);
         }
 
         $html = '<html>

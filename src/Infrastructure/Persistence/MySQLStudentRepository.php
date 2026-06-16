@@ -20,8 +20,8 @@ class MySQLStudentRepository implements StudentRepositoryInterface
     {
         $today = date('Y-m-d');
         $sql = "SELECT u.id, u.nome, u.turma, u.criado_at, u.rosto_cadastrado_at, u.ultima_entrada_at, u.face_descriptor, u.face_landmarks,
-                       (SELECT COUNT(*) FROM acessos_log al WHERE al.usuario_id = u.id AND DATE(al.horario_entrada) = ?) as daily_access_count,
-                       (SELECT MAX(horario_entrada) FROM acessos_log al WHERE al.usuario_id = u.id) as last_entry
+                       (SELECT COUNT(*) FROM acessos_log al WHERE al.usuario_id = u.id AND DATE(al.horario_entrada) = ? AND al.acao = 'entrada') as daily_access_count,
+                       (SELECT MAX(horario_entrada) FROM acessos_log al WHERE al.usuario_id = u.id AND al.acao = 'entrada') as last_entry
                 FROM {$this->table} u 
                 WHERE u.status = 'ativo'
                 ORDER BY last_entry DESC, u.nome ASC";

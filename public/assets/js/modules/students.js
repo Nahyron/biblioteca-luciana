@@ -150,6 +150,12 @@ window.toggleInactiveMode = function () {
 };
 
 async function loadStudents() {
+    // Reset da seleção em lote ao recarregar a lista
+    const masterCb = document.getElementById('select-all-students');
+    if (masterCb) masterCb.checked = false;
+    const btnDelete = document.getElementById('btn-delete-selected-students');
+    if (btnDelete) btnDelete.style.display = 'none';
+
     try {
         const actionUrl = window.showingInactive
             ? `${window.API_URL}?action=list_inactive_students`
@@ -185,6 +191,7 @@ async function loadStudents() {
 
                     if (window.showingInactive) {
                         tr.innerHTML = `
+                            <td style="text-align: center;"><input type="checkbox" class="student-select" value="${user.id}" onclick="updateSelectedStudentsState()"></td>
                             <td style="text-align: center; font-weight: bold; color: #888;">${user.id}</td>
                             <td>
                                 ${user.nome}
@@ -204,6 +211,7 @@ async function loadStudents() {
                         `;
                     } else {
                         tr.innerHTML = `
+                            <td style="text-align: center;"><input type="checkbox" class="student-select" value="${user.id}" onclick="updateSelectedStudentsState()"></td>
                             <td style="text-align: center; font-weight: bold; color: #888;">${user.id}</td>
                             <td>${user.nome}</td>
                             <td style="text-align: center;">${user.turma || 'N/A'}</td>
@@ -334,4 +342,100 @@ document.addEventListener('DOMContentLoaded', () => {
         window.setupInputSanitizer('#reg-name', 'name');
     }
 });
+
+/**
+ * Alterna a seleção de todos os alunos na tabela com base no checkbox mestre.
+ */
+window.toggleAllStudents = function (masterCb) {
+    const checkboxes = document.querySelectorAll('.student-select');
+    checkboxes.forEach(cb => {
+        // Apenas marcar se a linha estiver visível (não filtrada)
+        const tr = cb.closest('tr');
+        if (tr && tr.style.display !== 'none') {
+            cb.checked = masterCb.checked;
+        }
+    });
+    window.updateSelectedStudentsState();
+};
+
+/**
+ * Atualiza a visibilidade e o visual do botão de ação em lote com base nas seleções.
+ */
+window.updateSelectedStudentsState = function () {
+    const selected = document.querySelectorAll('.student-select:checked');
+    const btn = document.getElementById('btn-delete-selected-students');
+    if (!btn) return;
+
+    if (selected.length > 0) {
+        btn.style.display = 'inline-flex';
+        
+        // Atualiza a aparência do botão dependendo do modo ativo/inativo
+        if (window.showingInactive) {
+            btn.innerHTML = `<i class="fas fa-check"></i> Reativar Selecionados (${selected.length})`;
+            btn.style.backgroundColor = 'var(--success)';
+        } else {
+            btn.innerHTML = `<i class="fas fa-user-slash"></i> Desativar Selecionados (${selected.length})`;
+            btn.style.backgroundColor = '#dc3545';
+        }
+    } else {
+        btn.style.display = 'none';
+    }
+};
+
+/**
+ * Executa a ação de desativação ou reativação em lote dos alunos selecionados.
+ */
+window.deleteSelectedStudents = async function () {
+    const selected = document.querySelectorAll('.student-select:checked');
+    if (selected.length === 0) return;
+
+    const ids = Array.from(selected).map(cb => cb.value);
+    const count = ids.length;
+
+    const title = window.showingInactive ? "Reativar Alunos em Lote" : "Desativar Alunos em Lote";
+    const msg = window.showingInactive 
+        ? `Deseja reativar o cadastro dos ${count} aluno(s) selecionado(s)?` 
+        : `Deseja inativar o cadastro dos ${count} aluno(s) selecionado(s)?`;
+    const confirmBtnText = window.showingInactive ? "Sim, reativar" : "Sim, desativar";
+
+    const confirmed = await window.openConfirmModal(title, msg, confirmBtnText);
+    if (!confirmed) return;
+
+    const action = window.showingInactive ? 'activate_student' : 'delete_student';
+    
+    // Mostra um toast informativo do início do processo
+    showToast(`Processando ação em lote para ${count} aluno(s)...`, 'info');
+
+    let successes = 0;
+    let failures = 0;
+
+    try {
+        // Executa as ações sequencialmente para evitar conflitos de concorrência
+        for (const id of ids) {
+            try {
+                const res = await fetch(`${window.API_URL}?action=${action}&id=${id}`)
+                    .then(r => r.json());
+                if (res.success) {
+                    successes++;
+                } else {
+                    failures++;
+                }
+            } catch (err) {
+                failures++;
+            }
+        }
+
+        if (successes > 0) {
+            showToast(`${successes} aluno(s) atualizado(s) com sucesso.`, 'success');
+        }
+        if (failures > 0) {
+            showToast(`${failures} aluno(s) falharam ao atualizar.`, 'error');
+        }
+
+        window.knownStudentsCache = null; // Limpa o cache
+        loadStudents(); // Recarrega a tabela de alunos
+    } catch (err) {
+        showToast("Erro de comunicação ao processar ação em lote.", 'error');
+    }
+};
 

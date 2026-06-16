@@ -27,6 +27,7 @@
     <div class="admin-tab-panel" data-tipo="admin">
 
         <!-- Card: Cadastrar Novo Administrador -->
+        <?php if (\App\Infrastructure\Auth\SessionAuth::getAdminTipo() === 'admin'): ?>
         <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid var(--primary, #BC0000);">
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
                 <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(188,0,0,0.08);
@@ -74,6 +75,7 @@
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
         <!-- Card: Lista de Administradores -->
         <div class="card">
@@ -82,17 +84,32 @@
                     <i class="fas fa-list" style="color: #999; font-size: 0.9rem;"></i>
                     Lista de Administradores
                 </h3>
-                <button onclick="loadAdmins('admin')"
-                    style="padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: #fff;
-                           cursor: pointer; font-size: 0.82rem; color: #666; display: flex; align-items: center; gap: 5px;"
-                    title="Atualizar lista">
-                    <i class="fas fa-sync-alt"></i> Atualizar
-                </button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <?php if (\App\Infrastructure\Auth\SessionAuth::getAdminTipo() === 'admin'): ?>
+                    <button id="btn-delete-selected-admin" class="btn-danger" onclick="deleteSelectedAdmins('admin')"
+                        style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; background: #dc3545;
+                               cursor: pointer; font-size: 0.82rem; color: #fff; display: none; align-items: center; gap: 5px; font-weight: bold;">
+                        <i class="fas fa-trash-alt"></i> Excluir Selecionados
+                    </button>
+                    <?php endif; ?>
+                    <button onclick="loadAdmins('admin')"
+                        style="padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: #fff;
+                               cursor: pointer; font-size: 0.82rem; color: #666; display: flex; align-items: center; gap: 5px;"
+                        title="Atualizar lista">
+                        <i class="fas fa-sync-alt"></i> Atualizar
+                    </button>
+                </div>
             </div>
             <div class="table-container">
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background: #fafafa; border-bottom: 2px solid #f0f0f0;">
+                            <?php if (\App\Infrastructure\Auth\SessionAuth::getAdminTipo() === 'admin'): ?>
+                            <th style="padding: 12px 16px; font-size: 0.78rem; font-weight: 700; color: #888;
+                                       text-transform: uppercase; letter-spacing: 0.5px; width: 40px; text-align: center;">
+                                <input type="checkbox" id="select-all-admin" onclick="toggleAllAdmins(this, 'admin')">
+                            </th>
+                            <?php endif; ?>
                             <th style="padding: 12px 16px; font-size: 0.78rem; font-weight: 700; color: #888;
                                        text-transform: uppercase; letter-spacing: 0.5px; width: 60px;">ID</th>
                             <th style="padding: 12px 16px; font-size: 0.78rem; font-weight: 700; color: #888;
@@ -105,7 +122,7 @@
                     </thead>
                     <tbody id="admins-table-body-admin">
                         <tr>
-                            <td colspan="4" style="text-align:center; padding:2.5rem; color:#bbb;">
+                            <td colspan="5" style="text-align:center; padding:2.5rem; color:#bbb;">
                                 <i class="fas fa-spinner fa-spin"></i> Carregando...
                             </td>
                         </tr>
@@ -121,6 +138,7 @@
     <div class="admin-tab-panel" data-tipo="professor" style="display: none;">
 
         <!-- Card: Cadastrar Novo Professor -->
+        <?php if (\App\Infrastructure\Auth\SessionAuth::getAdminTipo() === 'admin'): ?>
         <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #2563eb;">
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
                 <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(37,99,235,0.08);
@@ -159,15 +177,22 @@
                         onblur="this.style.borderColor='#ddd'"
                         onkeypress="if(event.key==='Enter') createAdmin('professor')">
                 </div>
-                <div style="flex-shrink: 0;">
+                <div style="flex-shrink: 0; display: flex; gap: 8px;">
                     <button id="admin-btn-create-professor" class="btn-primary" onclick="createAdmin('professor')"
                         style="padding: 0.75rem 1.5rem; display: flex; align-items: center; gap: 0.5rem;
                                white-space: nowrap; border-radius: 8px; background: #2563eb; border-color: #2563eb;">
                         <i class="fas fa-plus"></i> Cadastrar Professor
                     </button>
+                    <button class="btn-primary" onclick="triggerTeacherExcelImport()"
+                        style="padding: 0.75rem 1.5rem; display: flex; align-items: center; gap: 0.5rem;
+                               white-space: nowrap; border-radius: 8px; background: #2ec4b6; border-color: #2ec4b6;">
+                        <i class="fas fa-file-excel"></i> Importar Planilha
+                    </button>
+                    <input type="file" id="teacher-excel-import-file" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleTeacherExcelImport(event)">
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
         <!-- Card: Lista de Professores -->
         <div class="card">
@@ -176,17 +201,32 @@
                     <i class="fas fa-list" style="color: #999; font-size: 0.9rem;"></i>
                     Lista de Professores
                 </h3>
-                <button onclick="loadAdmins('professor')"
-                    style="padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: #fff;
-                           cursor: pointer; font-size: 0.82rem; color: #666; display: flex; align-items: center; gap: 5px;"
-                    title="Atualizar lista">
-                    <i class="fas fa-sync-alt"></i> Atualizar
-                </button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <?php if (\App\Infrastructure\Auth\SessionAuth::getAdminTipo() === 'admin'): ?>
+                    <button id="btn-delete-selected-professor" class="btn-danger" onclick="deleteSelectedAdmins('professor')"
+                        style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; background: #dc3545;
+                               cursor: pointer; font-size: 0.82rem; color: #fff; display: none; align-items: center; gap: 5px; font-weight: bold;">
+                        <i class="fas fa-trash-alt"></i> Excluir Selecionados
+                    </button>
+                    <?php endif; ?>
+                    <button onclick="loadAdmins('professor')"
+                        style="padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: #fff;
+                               cursor: pointer; font-size: 0.82rem; color: #666; display: flex; align-items: center; gap: 5px;"
+                        title="Atualizar lista">
+                        <i class="fas fa-sync-alt"></i> Atualizar
+                    </button>
+                </div>
             </div>
             <div class="table-container">
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background: #fafafa; border-bottom: 2px solid #f0f0f0;">
+                            <?php if (\App\Infrastructure\Auth\SessionAuth::getAdminTipo() === 'admin'): ?>
+                            <th style="padding: 12px 16px; font-size: 0.78rem; font-weight: 700; color: #888;
+                                       text-transform: uppercase; letter-spacing: 0.5px; width: 40px; text-align: center;">
+                                <input type="checkbox" id="select-all-professor" onclick="toggleAllAdmins(this, 'professor')">
+                            </th>
+                            <?php endif; ?>
                             <th style="padding: 12px 16px; font-size: 0.78rem; font-weight: 700; color: #888;
                                        text-transform: uppercase; letter-spacing: 0.5px; width: 60px;">ID</th>
                             <th style="padding: 12px 16px; font-size: 0.78rem; font-weight: 700; color: #888;
@@ -199,7 +239,7 @@
                     </thead>
                     <tbody id="admins-table-body-professor">
                         <tr>
-                            <td colspan="4" style="text-align:center; padding:2.5rem; color:#bbb;">
+                            <td colspan="5" style="text-align:center; padding:2.5rem; color:#bbb;">
                                 <i class="fas fa-spinner fa-spin"></i> Carregando...
                             </td>
                         </tr>

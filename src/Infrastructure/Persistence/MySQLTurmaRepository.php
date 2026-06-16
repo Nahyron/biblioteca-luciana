@@ -22,11 +22,18 @@ class MySQLTurmaRepository implements TurmaRepositoryInterface
      */
     public function getAll(): array
     {
-        $result = $this->db->query("SELECT id, nome, ativo, created_at FROM turmas WHERE ativo = 1 ORDER BY nome ASC");
+        $result = $this->db->query("SELECT id, nome, ativo, created_at, criador_id, criador_tipo FROM turmas WHERE ativo = 1 ORDER BY nome ASC");
         $turmas = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                $turmas[] = new Turma($row['id'], $row['nome'], $row['created_at'], (int)$row['ativo']);
+                $turmas[] = new Turma(
+                    $row['id'],
+                    $row['nome'],
+                    $row['created_at'],
+                    (int)$row['ativo'],
+                    $row['criador_id'] !== null ? (int)$row['criador_id'] : null,
+                    $row['criador_tipo']
+                );
             }
         }
         return $turmas;
@@ -37,22 +44,29 @@ class MySQLTurmaRepository implements TurmaRepositoryInterface
      */
     public function getInactive(): array
     {
-        $result = $this->db->query("SELECT id, nome, ativo, created_at FROM turmas WHERE ativo = 0 ORDER BY nome ASC");
+        $result = $this->db->query("SELECT id, nome, ativo, created_at, criador_id, criador_tipo FROM turmas WHERE ativo = 0 ORDER BY nome ASC");
         $turmas = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                $turmas[] = new Turma($row['id'], $row['nome'], $row['created_at'], (int)$row['ativo']);
+                $turmas[] = new Turma(
+                    $row['id'],
+                    $row['nome'],
+                    $row['created_at'],
+                    (int)$row['ativo'],
+                    $row['criador_id'] !== null ? (int)$row['criador_id'] : null,
+                    $row['criador_tipo']
+                );
             }
         }
         return $turmas;
     }
 
-    public function create(string $nome): bool|string
+    public function create(string $nome, ?int $criadorId = null, ?string $criadorTipo = null): bool|string
     {
-        $stmt = $this->db->prepare("INSERT INTO turmas (nome, ativo) VALUES (?, 1)");
+        $stmt = $this->db->prepare("INSERT INTO turmas (nome, ativo, criador_id, criador_tipo) VALUES (?, 1, ?, ?)");
         if (!$stmt) return $this->db->error;
 
-        $stmt->bind_param("s", $nome);
+        $stmt->bind_param("sis", $nome, $criadorId, $criadorTipo);
         if ($stmt->execute()) {
             $stmt->close();
             return true;
@@ -251,7 +265,7 @@ class MySQLTurmaRepository implements TurmaRepositoryInterface
 
     public function getByName(string $nome): ?Turma
     {
-        $stmt = $this->db->prepare("SELECT id, nome, ativo, created_at FROM turmas WHERE nome = ? AND ativo = 1 LIMIT 1");
+        $stmt = $this->db->prepare("SELECT id, nome, ativo, created_at, criador_id, criador_tipo FROM turmas WHERE nome = ? AND ativo = 1 LIMIT 1");
         if (!$stmt) return null;
 
         $stmt->bind_param("s", $nome);
@@ -260,6 +274,34 @@ class MySQLTurmaRepository implements TurmaRepositoryInterface
         $data   = $result->fetch_assoc();
         $stmt->close();
 
-        return $data ? new Turma($data['id'], $data['nome'], $data['created_at'], (int)$data['ativo']) : null;
+        return $data ? new Turma(
+            $data['id'],
+            $data['nome'],
+            $data['created_at'],
+            (int)$data['ativo'],
+            $data['criador_id'] !== null ? (int)$data['criador_id'] : null,
+            $data['criador_tipo']
+        ) : null;
+    }
+
+    public function getById(int $id): ?Turma
+    {
+        $stmt = $this->db->prepare("SELECT id, nome, ativo, created_at, criador_id, criador_tipo FROM turmas WHERE id = ? LIMIT 1");
+        if (!$stmt) return null;
+
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $data   = $result->fetch_assoc();
+        $stmt->close();
+
+        return $data ? new Turma(
+            $data['id'],
+            $data['nome'],
+            $data['created_at'],
+            (int)$data['ativo'],
+            $data['criador_id'] !== null ? (int)$data['criador_id'] : null,
+            $data['criador_tipo']
+        ) : null;
     }
 }
